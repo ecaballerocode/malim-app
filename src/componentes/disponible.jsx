@@ -33,8 +33,8 @@ function Disponible() {
     "Maxi vestidos", "Maxi cobijas", "Ensambles", "Pantalones", "Pants",
     "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
     "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos",
-    "Camisas", "Gorros", "Calzado", "Guantes", "Faldas", "Suéteres",
-    "Overoles", "Otros, Sin categoria"
+    "Camisas", "Gorros", "Calzado", "Chalecos","Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres",
+    "Overoles", "Otros", "Sin Categoria"
   ];
 
   // Convertir categorías a formato compatible con Select

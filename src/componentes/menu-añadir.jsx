@@ -23,24 +23,34 @@ function MenuAñadir({menuAñadir}){
                         </Link>
                     </button>
                     <button className="text-white text-center flex items-center flex-col">
-                        <IoCashSharp className="text-3xl"/>
-                        <p className="text-xs">Pago</p>
+                        <Link className="text-center flex items-center flex-col">
+                            <IoCashSharp className="text-3xl"/>
+                            <p className="text-xs">Pago</p>
+                        </Link>
                     </button>
                     <button className="text-white text-center flex items-center flex-col">
-                        <MdOutlineInventory className="text-3xl"/>
-                        <p className="text-xs">Pedido</p>
+                        <Link className="text-center flex items-center flex-col">
+                            <MdOutlineInventory className="text-3xl"/>
+                            <p className="text-xs">Pedido</p>
+                        </Link>
                     </button>
                     <button className="text-white mt-5 text-center flex items-center flex-col">
-                        <AiOutlineShop className="text-3xl"/>
-                        <p className="text-xs">Proveedor</p>
+                        <Link to="/FormAñadirProveedor" className="text-center flex items-center flex-col">
+                            <AiOutlineShop className="text-3xl"/>
+                            <p className="text-xs">Proveedor</p>
+                        </Link>
                     </button>
                     <button className="text-white mt-5 text-center flex items-center flex-col">
-                        <FaPerson className="text-3xl"/>
-                        <p className="text-xs">Cliente</p>
+                        <Link className="text-center flex items-center flex-col">
+                            <FaPerson className="text-3xl"/>
+                            <p className="text-xs">Cliente</p>
+                        </Link>
                     </button>
                     <button className="text-white mt-5 text-center flex items-center flex-col">
-                        <MdPlace className="text-3xl"/>
-                        <p className="text-xs">Lugar</p>
+                        <Link className="text-center flex items-center flex-col">
+                            <MdPlace className="text-3xl"/>
+                            <p className="text-xs">Lugar</p>
+                        </Link>
                     </button>
                 </div>
             </div>

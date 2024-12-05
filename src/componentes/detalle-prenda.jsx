@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import Select from "react-select";
-import { doc, getDoc, updateDoc, getDocs, collection } from "firebase/firestore";
+import { doc, getDoc, updateDoc, getDocs, collection, deleteDoc } from "firebase/firestore";
 import { db } from "../credenciales";
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
@@ -13,6 +13,7 @@ import MenuAñadir from "./menu-añadir";
 
 function DetallePrenda() {
   const { id } = useParams(); // Obtiene el ID de la prenda desde la URL
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     prenda: "",
     detalles: "",
@@ -43,7 +44,7 @@ function DetallePrenda() {
     "Maxi vestidos", "Maxi cobijas", "Ensambles", "Pantalones", "Pants",
     "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
     "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos",
-    "Camisas", "Gorros", "Calzado", "Guantes", "Faldas", "Suéteres",
+    "Camisas", "Gorros", "Calzado", "Chalecos", "Guantes", "Faldas", "Suéteres",
     "Overoles", "Otros"
   ];
 
@@ -118,6 +119,21 @@ function DetallePrenda() {
       alert("Hubo un error al actualizar la prenda");
     } finally {
       setLoading(false);
+    }
+  };
+
+  //funcion para eliminar la prenda
+  const handleDelete = async () => {
+    const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar esta prenda?");
+    if (!confirmDelete) return;
+
+    try {
+      await deleteDoc(doc(db, "disponible", id));
+      alert("Prenda eliminada con éxito");
+      navigate("/Disponible"); // Redirige al usuario a la página principal o lista
+    } catch (error) {
+      console.error("Error al eliminar la prenda:", error);
+      alert("Hubo un error al eliminar la prenda");
     }
   };
 
@@ -262,10 +278,14 @@ function DetallePrenda() {
           >
             {loading ? "Actualizando..." : "Actualizar Prenda"}
           </button>
-          <button className="mt-2 py-2 px-4 bg-pink-600 text-white rounded-md cursor-pointer hover:bg-pink-200"
+          <button className="mt-2 py-2 px-4 bg-pink-700 text-white rounded-md cursor-pointer hover:bg-pink-200"
             type="button">
             Vender 
           </button> 
+          <button className="mt-2 py-2 px-4 bg-red-600 text-white rounded-md cursor-pointer hover:bg-pink-200"
+            type="button" onClick={handleDelete}>
+            Eliminar prenda
+          </button>
         </div>
       </form>
       </main>

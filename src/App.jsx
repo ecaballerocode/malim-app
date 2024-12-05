@@ -4,7 +4,7 @@ import MenuLateral from "./componentes/menu-lateral";
 import Footer from "./componentes/footer";
 import axios from "axios";
 import MenuAñadir from "./componentes/menu-añadir";
-
+import logo from "./logo-negro.png";
 
 
 //Pagina principal
@@ -62,7 +62,7 @@ function App(){
       <main className="flex-1">
         <div className="flex justify-center w-full h-16">
           {/*Imagen del logotipo */}
-          <img src="./logo-negro.png" alt="logo de malim" />
+          <img src={logo} alt="logo de malim" />
         </div>
         {/*Div en el que se va a ver la frase del dia */}
         <div className="bg-pink-400 mx-10 p-2 h-32 lg:mx-64 shadow-xl text-center rounded-lg flex flex-col items-center justify-center text-white">

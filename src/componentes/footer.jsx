@@ -8,21 +8,23 @@ import { Link } from "react-router-dom";
 function Footer({manejadorMenuAñadir}){
 
     return(
-        <footer className="z-50 text-white bg-pink-400 fixed bottom-0 w-full justify-around items-center">
+        <footer className="z-50 text-white bg-pink-400 fixed bottom-0 w-full justify-between items-center">
             {/*Botones laterales */}
-            <div className="flex justify-around px-8 relative">
+            <div className="flex justify-between px-5 relative">
                 {/*Botones izquierda */}
                 <div className="flex justify-between">
                     {/*Boton inicio */}
-                    <button className="flex flex-col items-center w-16">
-                        <Link to="/">
+                    <button className="flex flex-col items-center w-16 mx-2">
+                        <Link to="/" className="text-center flex items-center flex-col">
                             <IoMdHome className="text-3xl"/>
                             <span className="text-xs">Inicio</span>
                         </Link>                       
                     </button>
-                    <button className="flex flex-col items-center w-16">
-                        <MdOutlineInventory className="text-3xl"/>
-                        <span className="text-xs">Pedidos</span>
+                    <button className="flex flex-col items-center w-16 mx-2 pr-3">
+                        <Link className="text-center flex items-center flex-col">
+                            <MdOutlineInventory className="text-3xl"/>
+                            <span className="text-xs">Pedidos</span>
+                        </Link>
                     </button>
                 </div>
                 <div className="relative flex justify-center">
@@ -32,12 +34,14 @@ function Footer({manejadorMenuAñadir}){
                 </div>
                 <div className="flex justify-between">
                     {/*Boton inventario */}
-                    <button className="flex flex-col items-center w-16">
-                        <MdInventory className="text-3xl"/>
-                        <span className="text-xs">Inventario</span>
+                    <button className="flex flex-col items-center w-16 mx-2 pl-3">
+                        <Link className="text-center flex items-center flex-col">
+                            <MdInventory className="text-3xl"/>
+                            <span className="text-xs">Inventario</span>
+                        </Link>
                     </button>
-                    <button className="flex flex-col items-center w-16">
-                        <Link to="/Disponible">
+                    <button className="flex flex-col items-center w-16 mx-2">
+                        <Link to="/Disponible" className="text-center flex items-center flex-col">
                             <GiClothes className="text-3xl"/>
                             <span className="text-xs">Disponible</span>
                         </Link>
