@@ -44,14 +44,20 @@ function DetallePrenda() {
     "Maxi vestidos", "Maxi cobijas", "Ensambles", "Pantalones", "Pants",
     "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
     "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos",
-    "Camisas", "Gorros", "Calzado", "Chalecos", "Guantes", "Faldas", "Suéteres",
-    "Overoles", "Otros"
+    "Camisas", "Gorros", "Calzado", "Chalecos","Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres",
+    "Overoles", "Otros", "Sin Categoria", "Niños uisex", "Gabardinas"
   ];
 
   const tallas = [
-    "Inf 2-4", "Inf 6-8", "Inf 10-12", "(28-30)", "(32-34)",
-    "(36-38)", "(40-42)", "Unitalla"
+    "Inf 2-4", "Inf 6-8", "Inf 10-12", "juv 14-16", "XS (3-5)", "(28-30)", "(30-32)", "(32-34)",
+    "(34-36)","(36-38)", "(38-40)", "(40-42)", "Unitalla", "5", "7", "9", "11", "13",
+    "15", "17", "4", "6", "8", "10", "12", "14", "16", "30", "32", "34", "36", "38",
+    "40", "42"
   ];
+
+  const manejarClickVender = (id) => {
+    navigate(`/FormVender/${id}`);  // Redirige a la página de venta
+  };
 
   const proveedoresOptions = proveedores.map((prov) => ({
     value: prov.id,
@@ -122,18 +128,55 @@ function DetallePrenda() {
     }
   };
 
+  const obtenerPublicId = (url) => {
+    // Extrae el public_id de la URL
+    const parts = url.split("/");
+    const publicIdWithExtension = parts[parts.length - 1]; // Obtiene el último segmento (incluye extensión)
+    const publicId = publicIdWithExtension.split(".")[0]; // Elimina la extensión (.jpg, .png, etc.)
+    return `${parts[parts.length - 2]}/${publicId}`; // Incluye el prefijo de la carpeta (si lo hay)
+  };
+
+  const CLOUDINARY_UPLOAD_PRESET = "malimapp";
+
   //funcion para eliminar la prenda
   const handleDelete = async () => {
     const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar esta prenda?");
     if (!confirmDelete) return;
-
     try {
+      // Eliminar imágenes de Cloudinary
+      const deleteImages = async () => {
+        const deletePromises = formData.fotos.map(async (fotoUrl) => {
+          const publicId = obtenerPublicId(fotoUrl); // Extrae el public_id de la URL
+          if (publicId) {
+            const response = await fetch(
+              `https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  public_id: publicId,
+                  upload_preset: CLOUDINARY_UPLOAD_PRESET,
+                }),
+              }
+            );
+            return response.json();
+          }
+        });
+  
+        await Promise.all(deletePromises); // Espera a que se eliminen todas las imágenes
+      };
+  
+      await deleteImages();
+  
+      // Eliminar el documento de Firebase
       await deleteDoc(doc(db, "disponible", id));
-      alert("Prenda eliminada con éxito");
+      alert("Prenda e imágenes eliminadas con éxito");
       navigate("/Disponible"); // Redirige al usuario a la página principal o lista
     } catch (error) {
-      console.error("Error al eliminar la prenda:", error);
-      alert("Hubo un error al eliminar la prenda");
+      console.error("Error al eliminar la prenda o las imágenes:", error);
+      alert("Hubo un error al eliminar la prenda o las imágenes");
     }
   };
 
@@ -278,7 +321,7 @@ function DetallePrenda() {
           >
             {loading ? "Actualizando..." : "Actualizar Prenda"}
           </button>
-          <button className="mt-2 py-2 px-4 bg-pink-700 text-white rounded-md cursor-pointer hover:bg-pink-200"
+          <button onClick={()=>manejarClickVender(id)} className="mt-2 py-2 px-4 bg-pink-700 text-white rounded-md cursor-pointer hover:bg-pink-200"
             type="button">
             Vender 
           </button> 

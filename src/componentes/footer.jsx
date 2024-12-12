@@ -21,7 +21,7 @@ function Footer({manejadorMenuAñadir}){
                         </Link>                       
                     </button>
                     <button className="flex flex-col items-center w-16 mx-2 pr-3">
-                        <Link className="text-center flex items-center flex-col">
+                        <Link to="/Pedidos" className="text-center flex items-center flex-col">
                             <MdOutlineInventory className="text-3xl"/>
                             <span className="text-xs">Pedidos</span>
                         </Link>

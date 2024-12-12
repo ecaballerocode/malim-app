@@ -6,6 +6,13 @@ import Disponible from './componentes/disponible';
 import FormAñadirDisponible from './componentes/form-añadir-disponible';
 import DetallePrenda from './componentes/detalle-prenda';
 import FormAñadirProveedor from './componentes/form-añadir-proveedor';
+import MarcaAgua from './componentes/marca-agua';
+import FormVender from './componentes/form-vender';
+import Pedidos from './componentes/pedidos';
+import ModificarPedido from './componentes/modificar-pedido';
+import FormAñadirCliente from './componentes/form-añadir-cliente';
+import Compras from './componentes/compras';
+import Entregas from './componentes/entregas';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -16,6 +23,13 @@ root.render(
       <Route path='FormAñadirDisponible' element={<FormAñadirDisponible />}/>
       <Route path='DetallePrenda/:id' element={<DetallePrenda />}/>
       <Route path='FormAñadirProveedor' element={<FormAñadirProveedor />}/>
+      <Route path='MarcaAgua' element={<MarcaAgua />}/>
+      <Route path='FormVender/:id' element={<FormVender />}/>
+      <Route path='Pedidos' element={<Pedidos />}/>
+      <Route path='ModificarPedido/:id' element={<ModificarPedido />}/>
+      <Route path='FormAñadirCliente' element={<FormAñadirCliente />}/>
+      <Route path='Compras' element={<Compras />}/>
+      <Route path='Entregas' element={<Entregas />}/>
     </Routes>
   </Router>
 );

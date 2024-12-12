@@ -5,6 +5,9 @@ import Footer from "./componentes/footer";
 import axios from "axios";
 import MenuAñadir from "./componentes/menu-añadir";
 import logo from "./logo-negro.png";
+import arregloFrases from "./arregloFrases";
+import { IoMdRefresh } from "react-icons/io";
+import { FaShare } from "react-icons/fa";
 
 
 //Pagina principal
@@ -46,6 +49,22 @@ function App(){
     setmenuAñadir(!menuAñadir);
   }
 
+  //Funciones y estados para manejar la solicitud de frases
+
+  const [quote, setQuote] = useState("")
+
+  const fetchRandomQuote = () =>{
+   const fraseRandom = arregloFrases[Math.floor(Math.random()*arregloFrases.length)]
+    setQuote(fraseRandom);
+  }
+
+  //Funcion para enviar la frase por whatsapp
+
+  const enviarWhatsapp = (quote) =>{
+    const url = `https://wa.me/?text=${encodeURIComponent(quote)}`;
+    window.open(url, "_blank");
+  }
+
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-pink-100 pb-16 pt-10">
@@ -65,13 +84,16 @@ function App(){
           <img src={logo} alt="logo de malim" />
         </div>
         {/*Div en el que se va a ver la frase del dia */}
-        <div className="bg-pink-400 mx-10 p-2 h-32 lg:mx-64 shadow-xl text-center rounded-lg flex flex-col items-center justify-center text-white">
-          <p>
-            Frase del dia
-          </p>
-          <p className="text-xs mt-2">
-            -autor-
-          </p>
+        <div className="bg-pink-400 mx-10 p-2 h-32 lg:mx-64 shadow-xl text-center rounded-lg flex flex-col items-center justify-center relative text-white">
+          <p className="flex-grow font-bold mt-10">{quote}</p>
+          <div className="flex flex-row mt-auto justify-between w-full">
+            <button className="text-pink-100 mx-3 px-2" onClick={fetchRandomQuote}>
+              <IoMdRefresh className="text-2xl"/>
+            </button>
+            <button className="text-pink-100 mx-3 px-2" onClick={() => enviarWhatsapp(quote)}>
+              <FaShare className="text-xl"/>
+            </button>
+          </div>
         </div>
         {/*Creamos el div que vaa albergar las estadidticas */}
         <div className="bg-pink-400 z-0 mx-10 mt-10 p-2 h-64 lg:mx-64 shadow-xl text-center rounded-lg ">

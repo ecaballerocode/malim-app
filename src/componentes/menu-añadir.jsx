@@ -41,7 +41,7 @@ function MenuAñadir({menuAñadir}){
                         </Link>
                     </button>
                     <button className="text-white mt-5 text-center flex items-center flex-col">
-                        <Link className="text-center flex items-center flex-col">
+                        <Link to="/FormAñadirCliente" className="text-center flex items-center flex-col">
                             <FaPerson className="text-3xl"/>
                             <p className="text-xs">Cliente</p>
                         </Link>
