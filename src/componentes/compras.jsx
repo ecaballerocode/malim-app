@@ -5,9 +5,7 @@ import MenuLateral from "./menu-lateral";
 import Footer from "./footer";
 import MenuAñadir from "./menu-añadir";
 import { db } from "../credenciales";
-import { collection, getDocs } from "firebase/firestore";
-import Select from "react-select";
-import { useNavigate } from 'react-router-dom';
+import { collection, getDocs, updateDoc, doc, deleteDoc } from "firebase/firestore";
 
 
 function Compras() {
@@ -59,6 +57,48 @@ function Compras() {
     setmenuAñadir(!menuAñadir);
   };
 
+    // Función para manejar el botón "Comprado"
+    const marcarComoComprado = async (pedidoId) => {
+      // Mostrar confirmación al usuario
+      const confirmacion = window.confirm("¿Estás seguro de marcar este pedido como comprado?");
+      if (!confirmacion) return;
+  
+      try {
+        // Actualizar el documento en Firestore
+        const pedidoRef = doc(db, "pedidos", pedidoId);
+        await updateDoc(pedidoRef, { comprado: true });
+  
+        // Eliminar el pedido del estado local
+        setPedidos((prevPedidos) => prevPedidos.filter((pedido) => pedido.id !== pedidoId));
+  
+        // Opcional: Mostrar un mensaje de éxito
+        alert("El pedido fue marcado como comprado.");
+      } catch (error) {
+        console.error("Error al actualizar el pedido:", error);
+        alert("Ocurrió un error al intentar actualizar el pedido.");
+      }
+    };
+
+    const marcarComoCancelado = async (pedidoId) => {
+      // Mostrar confirmación al usuario
+      const confirmacion = window.confirm("¿Estás seguro que quieres eliminar este pedido?");
+      if (!confirmacion) return;
+  
+      try {
+        // Eliminar el documento en Firestore
+        await deleteDoc(doc(db, "pedidos", pedidoId));
+  
+        // Eliminar el pedido del estado local
+        setPedidos((prevPedidos) => prevPedidos.filter((pedido) => pedido.id !== pedidoId));
+  
+        // Opcional: Mostrar un mensaje de éxito
+        alert("El pedido fue eliminado.");
+      } catch (error) {
+        console.error("Error al actualizar el pedido:", error);
+        alert("Ocurrió un error al intentar actualizar el pedido.");
+      }
+    };
+
   
   return (
     <div className="bg-pink-100 min-h-screen">
@@ -73,36 +113,45 @@ function Compras() {
         <MenuAñadir menuAñadir={menuAñadir} />
       </div>
       <main className="pb-16 pt-10">
-        <div className='flex flex-row justify-center text-center'>
-          <p className='font-bold text-2xl text-pink-600'>Total:</p>
-          <p className='ml-3 font-bold text-2xl text-pink-600'>${suma}</p>
+        <div className="flex flex-row justify-center text-center">
+          <p className="font-bold text-2xl text-pink-600">Total:</p>
+          <p className="ml-3 font-bold text-2xl text-pink-600">${suma}</p>
         </div>
-        <div className="productos-container bg-pink-100 grid grid-cols-2 lg:grid-cols-5 lg:gap-3 gap-3 mx-5 mb-5">
-          {Object.keys(pedidosAgrupados).map((proveedor) => (
-            <div key={proveedor} className="h-auto border-2 rounded-lg shadow-xl border-pink-200">
-              <h1>{proveedor}</h1>
-              <hr />
-              <div className='productos container'>
-                {pedidosAgrupados[proveedor].map((pedido)=>(
-                  <div>
-                    <div className='bg-pink-400 text-white text-center h-auto w-full'>
-                    <p className='font-bold'>{pedido.proveedor}</p>
+
+        <div className="productos-container bg-pink-100 mx-5 mb-5 space-y-5">
+  {Object.keys(pedidosAgrupados).map((proveedor) => {
+    // Sumar los costos de los pedidos de este proveedor
+    const sumaProveedor = pedidosAgrupados[proveedor].reduce((total, pedido) => total + pedido.costo, 0);
+
+    return (
+      <div key={proveedor} className="h-auto border-2 rounded-lg shadow-xl border-pink-200 p-3">
+        {/* Separador con el nombre del proveedor */}
+        <div className="flex flex-row justify-between">
+          <h1 className="font-bold text-lg text-pink-600">{proveedor}</h1>
+          <h1 id="costo-proveedor" className="font-bold text-lg text-pink-600">
+            ${sumaProveedor}
+          </h1>
+        </div>
+
+        {/* Contenedor horizontal para los productos del proveedor */}
+        <div className="flex overflow-x-auto space-x-3">
+          {pedidosAgrupados[proveedor].map((pedido) => (
+            <div key={pedido.id} className="w-1/2 lg:w-1/4 h-auto bg-pink-200 flex-shrink-0 bg-white border rounded-lg shadow-sm mb-2">
+              {/* Información del producto */}
+              <div className="lg:h-64 h-40 w-full">
+                {pedido.fotos ? (
+                  <img
+                    src={pedido.fotos}
+                    alt={"Foto del producto"}
+                    className="lg:h-64 h-40 w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center h-full justify-center">
+                    <p className="text-center text-gray-600 font-sm">Sin fotos disponibles</p>
                   </div>
-                  <div className="lg:h-64 h-40 w-full">
-                    {pedido.fotos ? (
-                      <img
-                        key={pedido.fotos}
-                        src={pedido.fotos}
-                        alt={"Foto del producto"}
-                        className="lg:h-64 h-40 w-full"
-                      />
-                    ) : (
-                      <div className="flex items-center h-full justify-center">
-                        <p className="text-center text-gray-600 font-sm">Sin fotos disponibles</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-2 text-pink-600">
+                )}
+              </div>
+              <div className="p-2 text-pink-600">
                 <p className="font-bold lg:text-sm text-pink-700">{pedido.prenda}</p>
                 <div className="flex flex-row justify-between">
                   <p className="lg:text-sm">{pedido.talla}</p>
@@ -113,12 +162,23 @@ function Compras() {
                   <p className="lg:text-sm">{pedido.cliente}</p>
                 </div>
               </div>
+              <div className="flex flex-row justify-between text-white text-center px-2 pb-2">
+                <button className="px-2 bg-pink-400 text-white rounded-lg mx-2 shadow-xl"
+                onClick={()=>marcarComoComprado(pedido.id)}>
+                  Comprado
+                </button>
+                <button className="px-2 bg-pink-600 text-white rounded-lg mx-2 shadow-xl"
+                onClick={()=>marcarComoCancelado(pedido.id)}>
+                  Cancelado
+                </button>
               </div>
-                ))}
-            </div>
             </div>
           ))}
         </div>
+      </div>
+    );
+  })}
+</div>
       </main>
       <Footer manejadorMenuAñadir={manejadorMenuAñadir}/>
     </div>

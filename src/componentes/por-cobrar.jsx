@@ -6,10 +6,11 @@ import Footer from "./footer";
 import MenuAñadir from "./menu-añadir";
 import { db } from "../credenciales";
 import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 
 
-function Entregas() {
 
+function PorCobrar() {
   const [menuAbierto, setmenuAbierto] = useState(false);
   const [menuAñadir, setmenuAñadir] = useState(false);
   const [pedidos, setPedidos] = useState([]);
@@ -24,7 +25,7 @@ function Entregas() {
           id: doc.id,
           ...doc.data(),
         }));
-        const docsFilter = docsArray.filter(doc => doc.entregado === false);
+        const docsFilter = docsArray.filter(doc => doc.precio - doc.pago > 0);
         setPedidos(docsFilter);
       } catch (error) {
         console.error("Error al cargar los documentos", error);
@@ -57,34 +58,20 @@ function Entregas() {
     setmenuAñadir(!menuAñadir);
   };
 
-    // Función para manejar el botón "Comprado"
-    const marcarComoEntregado = async (pedidoId) => {
-      // Mostrar confirmación al usuario
-      const confirmacion = window.confirm("¿Estás seguro de marcar este pedido como entregado?");
-      if (!confirmacion) return;
-  
-      try {
-        // Actualizar el documento en Firestore
-        const pedidoRef = doc(db, "pedidos", pedidoId);
-        await updateDoc(pedidoRef, { entregado: true });
-  
-        // Eliminar el pedido del estado local
-        setPedidos((prevPedidos) => prevPedidos.filter((pedido) => pedido.id !== pedidoId));
-  
-        // Opcional: Mostrar un mensaje de éxito
-        alert("El pedido fue marcado como entregado.");
-      } catch (error) {
-        console.error("Error al actualizar el pedido:", error);
-        alert("Ocurrió un error al intentar actualizar el pedido.");
-      }
-    };
+  const navigate = useNavigate();
 
+
+  const handleAgregarPago = (id) => {
+    navigate(`/AgregarPago/${id}`);  // Redirige a la página de detalles
+  };
+
+    
   
   return (
     <div className="bg-pink-100 min-h-screen">
       <header className="relative">
         <Header menuAbierto={menuAbierto} manejadorMenu={manejadorMenu} />
-        <h1 className="fixed inset-x-0 transform pt-2 text-center pointer-events-none text-xl font-bold text-white z-50">Prendas por entregar</h1>
+        <h1 className="fixed inset-x-0 transform pt-2 text-center pointer-events-none text-xl font-bold text-white z-50">Por cobrar</h1>
       </header>
       <div>
         <MenuLateral menuAbierto={menuAbierto} />
@@ -157,9 +144,8 @@ function Entregas() {
                 </div>
               </div>
               <div className="flex flex-row justify-center text-white text-center px-2 pb-2">
-                <button className="px-2 bg-pink-400 text-white rounded-lg mx-2 shadow-xl"
-                onClick={()=>marcarComoEntregado(pedido.id)}>
-                  Entregado
+                <button onClick={()=>handleAgregarPago(pedido.id)} className="px-2 bg-pink-400 text-white rounded-lg mx-2 shadow-xl">
+                  Agregar pago
                 </button>
               </div>
             </div>
@@ -175,4 +161,4 @@ function Entregas() {
   )
 }
 
-export default Entregas;
+export default PorCobrar;

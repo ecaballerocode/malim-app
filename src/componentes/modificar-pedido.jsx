@@ -377,7 +377,7 @@ function ModificarPedido() {
                       <div className="w-full flex justify-center">
                         <button className="h-10 px-4 bg-red-600 w-1/2 mb-5 shadow-xl text-white rounded-md cursor-pointer hover:bg-pink-200"
                           type="button" onClick={handleDelete}>
-                          Eliminar prenda
+                          Eliminar pedido
                         </button>
                       </div>
                   </div>

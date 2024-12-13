@@ -23,7 +23,7 @@ function MenuAñadir({menuAñadir}){
                         </Link>
                     </button>
                     <button className="text-white text-center flex items-center flex-col">
-                        <Link className="text-center flex items-center flex-col">
+                        <Link to="PorCobrar" className="text-center flex items-center flex-col">
                             <IoCashSharp className="text-3xl"/>
                             <p className="text-xs">Pago</p>
                         </Link>

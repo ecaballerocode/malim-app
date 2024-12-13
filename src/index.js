@@ -13,10 +13,12 @@ import ModificarPedido from './componentes/modificar-pedido';
 import FormAñadirCliente from './componentes/form-añadir-cliente';
 import Compras from './componentes/compras';
 import Entregas from './componentes/entregas';
+import PorCobrar from './componentes/por-cobrar';
+import AgregarPago from './componentes/agregar-pago';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
-  <Router basename='/malim-app'>
+  <Router>
     <Routes>
       <Route path='/' element={<App />}/>
       <Route path='Disponible' element={<Disponible />}/>
@@ -30,6 +32,8 @@ root.render(
       <Route path='FormAñadirCliente' element={<FormAñadirCliente />}/>
       <Route path='Compras' element={<Compras />}/>
       <Route path='Entregas' element={<Entregas />}/>
+      <Route path='PorCobrar' element={<PorCobrar />}/>
+      <Route path='AgregarPago/:id' element={<AgregarPago />}/>
     </Routes>
   </Router>
 );

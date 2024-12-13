@@ -199,6 +199,9 @@ function FormVender() {
       const handleSubmit = async (e) => {
         e.preventDefault();
 
+      const clienteNombre = clientes.find(cliente => cliente.id === Data.cliente)?.cliente; // Buscar el nombre del cliente
+
+
       const dataToSubmit = {
         ...Data,
         cliente: Data.cliente?.label || "",
