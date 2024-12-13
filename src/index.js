@@ -18,7 +18,7 @@ import AgregarPago from './componentes/agregar-pago';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
-  <Router>
+  <Router basename='/malim-app'>
     <Routes>
       <Route path='/' element={<App />}/>
       <Route path='Disponible' element={<Disponible />}/>
