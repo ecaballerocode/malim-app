@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/malim-app/static/css/main.069137ff.css",
-    "main.js": "/malim-app/static/js/main.96d8848c.js",
+    "main.js": "/malim-app/static/js/main.50d03280.js",
     "static/media/logo-negro.png": "/malim-app/static/media/logo-negro.f9e5d9dcc96b7c04ad93.png",
     "static/media/slick.svg": "/malim-app/static/media/slick.2630a3e3eab21c607e21.svg",
     "static/media/slick.eot": "/malim-app/static/media/slick.a4e97f5a2a64f0ab1323.eot",
@@ -9,10 +9,10 @@
     "static/media/slick.woff": "/malim-app/static/media/slick.295183786cd8a1389865.woff",
     "index.html": "/malim-app/index.html",
     "main.069137ff.css.map": "/malim-app/static/css/main.069137ff.css.map",
-    "main.96d8848c.js.map": "/malim-app/static/js/main.96d8848c.js.map"
+    "main.50d03280.js.map": "/malim-app/static/js/main.50d03280.js.map"
   },
   "entrypoints": [
     "static/css/main.069137ff.css",
-    "static/js/main.96d8848c.js"
+    "static/js/main.50d03280.js"
   ]
 }
