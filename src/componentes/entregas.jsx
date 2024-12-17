@@ -24,7 +24,7 @@ function Entregas() {
           id: doc.id,
           ...doc.data(),
         }));
-        const docsFilter = docsArray.filter(doc => doc.entregado === false);
+        const docsFilter = docsArray.filter(doc => doc.entregado === false && doc.cliente != "INVENTARIO");
         setPedidos(docsFilter);
       } catch (error) {
         console.error("Error al cargar los documentos", error);
@@ -116,14 +116,14 @@ function Entregas() {
         {/* Contenedor horizontal para los productos del cliente */}
         <div className="flex overflow-x-auto space-x-3">
           {pedidosAgrupados[cliente].map((pedido) => (
-            <div key={pedido.id} className="w-1/2 lg:w-1/4 h-auto flex-shrink-0 bg-pink-200 border rounded-lg shadow-sm mb-2">
+            <div key={pedido.id} className="w-4/5 lg:w-1/4 h-auto flex-shrink-0 bg-pink-200 border rounded-lg shadow-sm mb-2">
               {/* Información del producto */}
-              <div className="lg:h-64 h-40 w-full">
+              <div className="lg:h-64 h-64 w-full">
                 {pedido.fotos ? (
                   <img
                     src={pedido.fotos}
                     alt={"Foto del producto"}
-                    className="lg:h-64 h-40 w-full object-cover"
+                    className="lg:h-64 h-64 w-full object-cover"
                   />
                 ) : (
                   <div className="flex items-center h-full justify-center">
@@ -134,25 +134,25 @@ function Entregas() {
               <div className="p-2 text-pink-600">
                 <p className="font-bold lg:text-sm text-pink-700">{pedido.prenda}</p>
                 <div className="flex flex-row justify-between">
-                  <p className="lg:text-sm">{pedido.talla}</p>
+                  <p className="">{pedido.talla}</p>
                   <p className="lg:text-sm text-pink-700">{pedido.color}</p>
                 </div>
                 <div className="flex flex-row justify-between mt-2">
-                  <p className="lg:text-sm">{pedido.entrega}</p>
-                  <p className="lg:text-sm text-pink-700">{pedido.lugar}</p>
+                  <p className="">{pedido.entrega}</p>
+                  <p className="text-pink-700">{pedido.lugar}</p>
                 </div>
                 <div className="flex flex-row justify-between">
                   <div className='flex flex-col justify-center mt-2'>
-                    <p className="lg:text-sm">Precio:</p>
-                    <p className="lg:text-sm">${pedido.precio}</p>
+                    <p className="">Precio:</p>
+                    <p className="">${pedido.precio}</p>
                   </div>
                   <div className='flex flex-col justify-center mt-2'>
-                    <p className="lg:text-sm">Pagó:</p>
-                    <p className="lg:text-sm">${pedido.pago}</p>
+                    <p className="">Pagó:</p>
+                    <p className="">${pedido.pago}</p>
                   </div>
                   <div className='flex flex-col justify-center mt-2'>
-                    <p className="lg:text-sm">Resta:</p>
-                    <p className="lg:text-sm font-bold" >${pedido.precio - pedido.pago}</p>
+                    <p className="">Resta:</p>
+                    <p className="font-bold" >${pedido.precio - pedido.pago}</p>
                   </div>
                 </div>
               </div>

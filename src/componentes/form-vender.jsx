@@ -253,8 +253,8 @@ function FormVender() {
             <div>
                 <MenuAñadir menuAñadir={menuAñadir} />
             </div>
-            <main className="pb-16 pt-10 flex flex-row justify-between">
-                <div className="h-auto border-2 p-5 rounded-lg shadow-xl border-pink-200 m-10 flex justify-center">
+            <main className="pb-16 pt-10 flex lg:flex-row flex-col justify-between">
+                <div className="h-auto border-2 p-5 rounded-lg shadow-xl border-pink-200 m-10 flex justify-center flex-col lg:flex-row">
                     <Slider {...settings} className="w-64 mx-auto flex justify-center">
                         {Data.fotos.map((foto, index) => (
                         <div key={index}>
@@ -262,7 +262,7 @@ function FormVender() {
                         </div>
                     ))}
                     </Slider>
-                    <div className="ml-5 mt-10">
+                    <div className="lg:ml-5 lg:mt-10 mt-1">
                         <p className="mb-5 font-bold text-lg text-pink-700 m-2">{Data.prenda}</p>
                         <p className="text-pink-600 m-2">{Data.proveedor}</p>
                         <p className="text-pink-600 m-2">{Data.categoria}</p>

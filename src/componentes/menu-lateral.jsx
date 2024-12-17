@@ -5,6 +5,7 @@ import { GiClothes } from "react-icons/gi";
 import { Link } from "react-router-dom";
 import { FaRegImage } from "react-icons/fa";
 import { GoPackageDependents } from "react-icons/go";
+import { ImStatsDots } from "react-icons/im";
 
 
 
@@ -34,6 +35,12 @@ return(
             <Link to="/Entregas" className="flex flex-row">
                 <GoPackageDependents className="text-xl"/>
                 <span className="ml-2">Entregas</span>
+            </Link>
+        </button>
+        <button className="text-pink-800">
+            <Link to="/Estadisticas" className="flex flex-row">
+                <ImStatsDots className="text-xl"/>
+                <span className="ml-2">Estadísticas</span>
             </Link>
         </button>
         </div>

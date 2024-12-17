@@ -11,7 +11,7 @@ import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 
 
-function ModificarPedido() {
+function FormVenderInventario() {
 
   const navigate = useNavigate();
 
@@ -220,10 +220,9 @@ function ModificarPedido() {
   
       try {
         await updateDoc(doc(db, "pedidos", id), dataToSubmit);
-        alert("Pedido actualizado con éxito.");
+        alert("Prenda vendida con éxito.");
         
-        fetchNewPrenda();
-        setFecha("");
+        navigate("/Inventario")
         
       } catch (error) {
         alert("Hubo un error al agregar el pedido.");
@@ -238,7 +237,7 @@ function ModificarPedido() {
       try {
         // Eliminar el documento de Firebase
         await deleteDoc(doc(db, "pedidos", id));
-        alert("Pedido eliminado con exito");
+        alert("Prenda eliminada con exito");
         navigate("/Pedidos"); // Redirige al usuario a la página principal o lista
       } catch (error) {
         console.error("Error al eliminar el pedido:", error);
@@ -251,7 +250,7 @@ function ModificarPedido() {
         <div className="bg-pink-100 min-h-screen">
             <header className="relative">
                 <Header menuAbierto={menuAbierto} manejadorMenu={manejadorMenu} />
-                <h1 className="fixed inset-x-0 transform pt-2 text-center pointer-events-none text-xl font-bold text-white z-50">Modificar pedido</h1>
+                <h1 className="fixed inset-x-0 transform pt-2 text-center pointer-events-none text-xl font-bold text-white z-50">Vender desde inventario</h1>
             </header>
             <div>
                 <MenuLateral menuAbierto={menuAbierto} />
@@ -259,10 +258,10 @@ function ModificarPedido() {
             <div>
                 <MenuAñadir menuAñadir={menuAñadir} />
             </div>
-            <main className="pb-16 pt-10 flex lg:flex-row justify-between flex-col">
-                <div className="h-96 border-2 p-5 rounded-lg shadow-xl border-pink-200 w-full lg:w-auto lg:m-10 flex justify-center">
+            <main className="pb-16 pt-10 flex lg:flex-row flex-col justify-between">
+                <div className="h-96 border-2 p-5 rounded-lg shadow-xl border-pink-200 lg:m-10 flex w-full lg:w-auto justify-center">
               
-                        <div className="w-2/3 h-auto mx-auto flex justify-center">
+                        <div className="lg:w-2/3 h-auto mx-auto flex justify-center">
                             <img src={Data.fotos} alt={`Prenda`} className="w-auto h-auto rounded-lg"/>
                         </div>
                     
@@ -371,7 +370,7 @@ function ModificarPedido() {
                           type="submit"
                           className="mt-2 py-2 px-4 h-10 bg-pink-400 w-1/2 mb-5 shadow-xl text-white rounded-md cursor-pointer hover:bg-pink-200"
                           >
-                          Actualizar
+                          Vender
                         </button>
                       </div>
                       <div className="w-full flex justify-center">
@@ -388,4 +387,4 @@ function ModificarPedido() {
     )
 }
 
-export default ModificarPedido;
+export default FormVenderInventario;

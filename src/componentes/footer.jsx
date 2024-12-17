@@ -35,7 +35,7 @@ function Footer({manejadorMenuAñadir}){
                 <div className="flex justify-between">
                     {/*Boton inventario */}
                     <button className="flex flex-col items-center w-16 mx-2 pl-3">
-                        <Link className="text-center flex items-center flex-col">
+                        <Link to="/Inventario" className="text-center flex items-center flex-col">
                             <MdInventory className="text-3xl"/>
                             <span className="text-xs">Inventario</span>
                         </Link>

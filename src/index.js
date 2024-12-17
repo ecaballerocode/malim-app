@@ -15,10 +15,13 @@ import Compras from './componentes/compras';
 import Entregas from './componentes/entregas';
 import PorCobrar from './componentes/por-cobrar';
 import AgregarPago from './componentes/agregar-pago';
+import Inventario from './componentes/inventario';
+import FormVenderInventario from './componentes/form-vender-inventario';
+import Estadisticas from './componentes/estadisticas';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
-  <Router basename='/malim-app'>
+  <Router basename='malim-app'>
     <Routes>
       <Route path='/' element={<App />}/>
       <Route path='Disponible' element={<Disponible />}/>
@@ -34,6 +37,9 @@ root.render(
       <Route path='Entregas' element={<Entregas />}/>
       <Route path='PorCobrar' element={<PorCobrar />}/>
       <Route path='AgregarPago/:id' element={<AgregarPago />}/>
+      <Route path='Inventario' element={<Inventario />}/>
+      <Route path='FormVenderInventario/:id' element={<FormVenderInventario />}/>
+      <Route path='Estadisticas' element={<Estadisticas />}/>
     </Routes>
   </Router>
 );

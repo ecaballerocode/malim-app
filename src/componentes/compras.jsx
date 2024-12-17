@@ -136,14 +136,14 @@ function Compras() {
         {/* Contenedor horizontal para los productos del proveedor */}
         <div className="flex overflow-x-auto space-x-3">
           {pedidosAgrupados[proveedor].map((pedido) => (
-            <div key={pedido.id} className="w-1/2 lg:w-1/4 h-auto bg-pink-200 flex-shrink-0 bg-white border rounded-lg shadow-sm mb-2">
+            <div key={pedido.id} className="w-4/5 lg:w-1/4 h-auto bg-pink-200 flex-shrink-0 bg-white border rounded-lg shadow-sm mb-2">
               {/* Información del producto */}
-              <div className="lg:h-64 h-40 w-full">
+              <div className="lg:h-64 h-64 w-full">
                 {pedido.fotos ? (
                   <img
                     src={pedido.fotos}
                     alt={"Foto del producto"}
-                    className="lg:h-64 h-40 w-full object-cover"
+                    className="lg:h-64 h-64 w-full object-cover"
                   />
                 ) : (
                   <div className="flex items-center h-full justify-center">
@@ -152,14 +152,14 @@ function Compras() {
                 )}
               </div>
               <div className="p-2 text-pink-600">
-                <p className="font-bold lg:text-sm text-pink-700">{pedido.prenda}</p>
+                <p className="font-bold text-pink-700">{pedido.prenda}</p>
                 <div className="flex flex-row justify-between">
-                  <p className="lg:text-sm">{pedido.talla}</p>
+                  <p className="">{pedido.talla}</p>
                   <p className="font-bold lg:text-sm text-pink-700">${pedido.costo}</p>
                 </div>
                 <div className="flex flex-row justify-between">
-                  <p className="lg:text-sm">{pedido.color}</p>
-                  <p className="lg:text-sm">{pedido.cliente}</p>
+                  <p className="">{pedido.color}</p>
+                  <p className="">{pedido.cliente}</p>
                 </div>
               </div>
               <div className="flex flex-row justify-between text-white text-center px-2 pb-2">
