@@ -84,7 +84,14 @@ function Disponible() {
           id: doc.id,
           ...doc.data(),
         }));
-
+  
+        // Asegurarse de que los documentos con fecha sean ordenados correctamente
+        docsArray.sort((a, b) => {
+          const fechaA = a.fecha || "1970-01-01";  // Si no hay fecha, se usa una fecha muy antigua
+          const fechaB = b.fecha || "1970-01-01";  // Igual para b
+          return fechaB.localeCompare(fechaA);  // Ordenar de más reciente a más antiguo
+        });
+  
         setPrendasDisponibles(docsArray);
       } catch (error) {
         console.error("Error al cargar los documentos", error);
@@ -92,7 +99,6 @@ function Disponible() {
     };
     fetchDocuments();
   }, []);
-
   // Cargar los proveedores desde Firestore
   useEffect(() => {
     const fetchProveedores = async () => {

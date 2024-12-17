@@ -1,24 +1,24 @@
 import React from "react";
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { doc, getDoc, collection, updateDoc, getDocs, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, collection, addDoc, getDocs } from "firebase/firestore";
 import { db } from "../credenciales";
 import Header from "./header";
 import MenuLateral from "./menu-lateral";
 import Footer from "./footer";
 import MenuAñadir from "./menu-añadir";
 import Select from "react-select";
-import { useNavigate } from "react-router-dom";
 
 
-function ModificarPedido() {
-
-  const navigate = useNavigate();
+function AñadirPedidoDirecto() {
 
   const [menuAbierto, setmenuAbierto] = useState(false);
   const [menuAñadir, setmenuAñadir] = useState(false);
   const [clientes, setClientes] = useState([]);
   const [fecha, setFecha] = useState("");
+  const [imagenSeleccionada, setImagenSeleccionada] = useState("");
+  const [proveedores, setProveedores] = useState([]);
+
 
   const { id } = useParams(); // Obtiene el ID de la prenda desde la URL
 
@@ -58,6 +58,16 @@ function ModificarPedido() {
     "40", "42"
   ];
 
+  const categorias = [
+    "Abrigos", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
+    "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas",
+    "Maxi vestidos", "Maxi cobijas", "Ensambles", "Pantalones", "Pants",
+    "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
+    "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos",
+    "Camisas", "Gorros", "Calzado", "Chalecos","Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres",
+    "Overoles", "Otros", "Sin Categoria", "Niños uisex", "Gabardinas"
+  ];
+
   const formaEntrega = ["Punto de venta", "A domicilio"]
 
   const tallaOptions = tallas.map((talla) => ({
@@ -75,6 +85,15 @@ function ModificarPedido() {
     label: lugar,
   }));
 
+  const proveedorOptions = proveedores.map((prov) => ({
+    value: prov.id,
+    label: prov.proveedor,
+  }));
+
+  const categoriaOptions = categorias.map((cat) => ({
+    value: cat,
+    label: cat,
+  }));
 
   const manejadorMenu = () => {
     setmenuAbierto(!menuAbierto);
@@ -90,40 +109,6 @@ function ModificarPedido() {
     setData({...Data, fecha: nuevaFecha})
   };
 
-  useEffect(() => {
-    const fetchPrenda = async () => {
-      try {
-        const prendaRef = doc(db, "pedidos", id);
-        const prendaDoc = await getDoc(prendaRef);
-
-        if (prendaDoc.exists()) {
-          const data = prendaDoc.data();
-          setData({
-            prenda: data.prenda,
-            detalles: data.detalles,
-            costo: data.costo,
-            precio: data.precio,
-            tallas: data.tallas,
-            talla: data.talla ? { value: data.talla, label: data.talla } : null,
-            categoria: data.categoria,
-            proveedor: data.proveedor,
-            fotos: data.fotos,
-            cliente: data.cliente ? {value: data.cliente, label: data.cliente}: null,
-            fecha: data.fecha,
-            color: data.color,
-            pago: data.pago,
-            lugar: data.lugar ? {value: data.lugar, label: data.lugar}: null,
-            entrega:data.entrega ? {value: data.entrega, label: data.entrega}: null,
-            comprado: data.comprado,
-            entregado:data.entregado
-          });
-        }
-      } catch (error) {
-        console.error("Error al obtener la prenda:", error);
-            }
-        };    
-        fetchPrenda();
-    }, [id]);
 
     useEffect(() => {
         const fetchClientes = async () => {
@@ -141,10 +126,27 @@ function ModificarPedido() {
         fetchClientes();
       }, []);
 
+      useEffect(() => {
+        const fetchDocuments = async () => {
+          try {
+            const querySnapshot = await getDocs(collection(db, "proveedores"));
+            const docsArray = querySnapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }));
+            setProveedores(docsArray);
+          } catch (error) {
+            console.error("Error al cargar los proveedores", error);
+          }
+        };
+        fetchDocuments();
+      }, []);
+    
+
       //Funcion para volver a renderizar el formulario cuando se envian los datos
       const fetchNewPrenda = async () => {
         try {
-          const prendaRef = doc(db, "pedidos", id);
+          const prendaRef = doc(db, "disponible", id);
           const prendaDoc = await getDoc(prendaRef);
   
           if (prendaDoc.exists()) {
@@ -179,6 +181,10 @@ function ModificarPedido() {
         setData({ ...Data, cliente: selectedOption });
       };
 
+      const handleProveedorChange = (selectedOption) => {
+        setData({ ...Data, proveedor: selectedOption });
+      };
+
       const handleTallaChange = (selectedOption) => {
         setData({...Data, talla: selectedOption});
       };
@@ -204,26 +210,37 @@ function ModificarPedido() {
         setData({...Data, entregado:!Data.entregado})
       };
 
+      const handleCategoriaChange = (selectedOption) => {
+        setData({ ...Data, categoria: selectedOption });
+      };
+
       const handleSubmit = async (e) => {
         e.preventDefault();
+
 
       const dataToSubmit = {
         ...Data,
         cliente: Data.cliente?.label || "",
+        proveedor: Data.proveedor?.label || "",
         lugar: Data.lugar?.label || "",
+        categoria: Data.categoria?.label || "",
         entrega: Data.entrega?.label || "",
         talla: Data.talla?.label || "",
+        fotos: imagenSeleccionada,
         pago: Number(Data.pago),
+        costo: Number(Data.costo),
+        precio: Number(Data.precio),
         comprado: !!Data.comprado, // Asegurar booleano
         entregado: !!Data.entregado
       };
   
       try {
-        await updateDoc(doc(db, "pedidos", id), dataToSubmit);
-        alert("Pedido actualizado con éxito.");
+        await addDoc(collection(db, "pedidos"), dataToSubmit);
+        alert("Pedido agregado con éxito.");
         
         fetchNewPrenda();
         setFecha("");
+        setImagenSeleccionada("");
         
       } catch (error) {
         alert("Hubo un error al agregar el pedido.");
@@ -232,26 +249,14 @@ function ModificarPedido() {
     };
 
 
-    const handleDelete = async () => {
-      const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar este pedido?");
-      if (!confirmDelete) return;
-      try {
-        // Eliminar el documento de Firebase
-        await deleteDoc(doc(db, "pedidos", id));
-        alert("Pedido eliminado con exito");
-        navigate("/Pedidos"); // Redirige al usuario a la página principal o lista
-      } catch (error) {
-        console.error("Error al eliminar el pedido:", error);
-        alert("Hubo un error al eliminar el pedido");
-      }
-    };
-
+    // Configuración del carrusel
+  
     
     return(
         <div className="bg-pink-100 min-h-screen">
             <header className="relative">
                 <Header menuAbierto={menuAbierto} manejadorMenu={manejadorMenu} />
-                <h1 className="fixed inset-x-0 transform pt-2 text-center pointer-events-none text-xl font-bold text-white z-50">Modificar pedido</h1>
+                <h1 className="fixed inset-x-0 transform pt-2 text-center pointer-events-none text-xl font-bold text-white z-50">Añadir pedido (sin imagen)</h1>
             </header>
             <div>
                 <MenuLateral menuAbierto={menuAbierto} />
@@ -259,30 +264,11 @@ function ModificarPedido() {
             <div>
                 <MenuAñadir menuAñadir={menuAñadir} />
             </div>
-            <main className="pb-16 pt-10 flex lg:flex-row justify-between flex-col">
-                <div className="h-96 border-2 p-5 rounded-lg shadow-xl border-pink-200 w-full lg:w-auto lg:m-10 flex justify-center">
-              
-                        <div className="w-2/3 h-auto mx-auto flex justify-center">
-                            <img src={Data.fotos} alt={`Prenda`} className="w-auto h-auto rounded-lg"/>
-                        </div>
-                    
-                  
-                    <div className="ml-5 mt-10">
-                        <p className="mb-5 font-bold text-lg text-pink-700 m-2">{Data.prenda}</p>
-                        <p className="text-pink-600 m-2">{Data.proveedor}</p>
-                        <p className="text-pink-600 m-2">{Data.categoria}</p>
-                        <div className="flex felx-row justify-between m-2">
-                            <p className="text-pink-600">${Data.costo}</p>
-                            <p className="text-pink-700 font-bold">${Data.precio}</p>
-                        </div>
-                        <p className="mb-5 text-pink-600 m-2">{Data.tallas}</p>
-                        <p className="text-pink-600 text-sm m-2">{Data.detalles}</p>
-                    </div>
-                </div>
+            <main className="pb-16 pt-10 flex lg:flex-row flex-col justify-center">           
                 <form onSubmit={handleSubmit} className="lg:border-2 lg:shadow-xl h-auto px-5 lg:py-2 pb-20 mt-10 mr-10 rounded-lg border-pink-200 max-w-lg w-full">
                   <div className="flex flex-col pt-2">
                     <label className="px-2 text-pink-800 font-bold" htmlFor="datePicker">Fecha</label>
-                    <input className="w-full px-2 h-8 bg-white rounded-md shadow-sm" type="date" id="datePicker" value={Data.fecha}
+                    <input className="w-full px-2 h-8 bg-white rounded-md shadow-sm" type="date" id="datePicker" value={fecha}
                     onChange={manejadorFecha} placeholder="Fecha"/>
                   </div>
                   <div className="flex flex-col pt-2">
@@ -293,6 +279,28 @@ function ModificarPedido() {
                           onChange={handleClienteChange}
                           isClearable
                           placeholder="Seleccionar cliente"
+                          />
+                    </div>
+                    <div className="flex flex-col pt-2">
+                      <label className="px-2 text-pink-800 font-bold">Prenda:</label>
+                      <input
+                          type="text"
+                          name="prenda"
+                          value={Data.prenda}
+                          onChange={handleChange}
+                          placeholder="¿Que prenda es?"
+                          required
+                          className="px-2 rounded-md h-8 shadow-sm"
+                          />
+                    </div>
+                    <div className="flex flex-col pt-2">
+                      <label className="px-2 text-pink-800 font-bold">Categoría:</label>
+                      <Select
+                          options={categoriaOptions}
+                          value={Data.categoria}
+                          onChange={handleCategoriaChange}
+                          isClearable
+                          placeholder="Seleccionar categoría"
                           />
                     </div>
                     <div className="flex flex-col pt-2">
@@ -313,6 +321,40 @@ function ModificarPedido() {
                           value={Data.color}
                           onChange={handleChange}
                           placeholder="Seleccionar color"
+                          required
+                          className="px-2 rounded-md h-8 shadow-sm"
+                          />
+                    </div>
+                    <div className="flex flex-col pt-2">
+                      <label className="px-2 text-pink-800 font-bold">Proveedor:</label>
+                      <Select
+                          options={proveedorOptions}
+                          value={Data.proveedor}
+                          onChange={handleProveedorChange}
+                          isClearable
+                          placeholder="Seleccionar proveedor"
+                          />
+                    </div>
+                    <div className="flex flex-col pt-2">
+                      <label className="px-2 text-pink-800 font-bold">Costo:</label>
+                      <input
+                          name="costo"
+                          type="number"
+                          value={Data.costo}
+                          onChange={handleChange}
+                          placeholder="Costo proveedor"
+                          required
+                          className="px-2 rounded-md h-8 shadow-sm"
+                          />
+                    </div>
+                    <div className="flex flex-col pt-2">
+                      <label className="px-2 text-pink-800 font-bold">Precio:</label>
+                      <input
+                          name="precio"
+                          type="number"
+                          value={Data.precio}
+                          onChange={handleChange}
+                          placeholder="Precio publico"
                           required
                           className="px-2 rounded-md h-8 shadow-sm"
                           />
@@ -353,21 +395,13 @@ function ModificarPedido() {
                         <label className="text-pink-800">¿Entregado?</label>
                       </div>
                     </div>
-                    <div className="flex w-full flex-col pt-2">
-                      <div className="w-full flex justify-center">
-                        <button
-                          type="submit"
-                          className="mt-2 py-2 px-4 h-10 bg-pink-400 w-1/2 mb-5 shadow-xl text-white rounded-md cursor-pointer hover:bg-pink-200"
-                          >
-                          Actualizar
-                        </button>
-                      </div>
-                      <div className="w-full flex justify-center">
-                        <button className="h-10 px-4 bg-red-600 w-1/2 mb-5 shadow-xl text-white rounded-md cursor-pointer hover:bg-pink-200"
-                          type="button" onClick={handleDelete}>
-                          Eliminar pedido
-                        </button>
-                      </div>
+                    <div className="flex justify-center pt-2">
+                    <button
+                      type="submit"
+                      className="mt-2 py-2 px-4 bg-pink-400 w-1/2 mb-5 shadow-xl text-white rounded-md cursor-pointer hover:bg-pink-200"
+                      >
+                      Vender
+                    </button>
                   </div>
                 </form>
             </main>
@@ -376,4 +410,4 @@ function ModificarPedido() {
     )
 }
 
-export default ModificarPedido;
+export default AñadirPedidoDirecto;

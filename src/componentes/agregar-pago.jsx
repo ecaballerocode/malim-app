@@ -191,7 +191,7 @@ function AgregarPago() {
                     <div className="w-2/3 px-4">
                       <p className="mb-2 font-bold text-center text-xl text-pink-700">{Data.cliente}</p>
                       <p className="mb-2 font-bold text-center text-pink-700">{Data.prenda}</p>
-                      <p className="mb-2 text-pink-600 font-bold text-sm">Estado: {estatus}</p>
+                      <p className="mb-2 text-pink-600 font-bold text-xs">Estado: {estatus}</p>
                       <div className="flex flex-row justify-between mb-2">
                         <p className="text-pink-600">{Data.talla}</p>
                         <p className="text-pink-600">{Data.color}</p>

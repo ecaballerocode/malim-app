@@ -1,7 +1,6 @@
 import React from "react";
-import { IoMdHome, IoMdAddCircleOutline } from "react-icons/io";
-import { MdOutlineInventory, MdInventory, MdOutlineShoppingCart } from "react-icons/md";
-import { GiClothes } from "react-icons/gi";
+import { IoCashSharp } from "react-icons/io5";
+import { MdOutlineInventory, MdOutlineShoppingCart } from "react-icons/md";
 import { Link } from "react-router-dom";
 import { FaRegImage } from "react-icons/fa";
 import { GoPackageDependents } from "react-icons/go";
@@ -41,6 +40,12 @@ return(
             <Link to="/Estadisticas" className="flex flex-row">
                 <ImStatsDots className="text-xl"/>
                 <span className="ml-2">Estadísticas</span>
+            </Link>
+        </button>
+        <button className="text-pink-800">
+            <Link to="/PorCobrar" className="flex flex-row">
+                <IoCashSharp className="text-xl"/>
+                <span className="ml-2">Por cobrar</span>
             </Link>
         </button>
         </div>

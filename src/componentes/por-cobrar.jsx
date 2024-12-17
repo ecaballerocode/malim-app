@@ -5,7 +5,7 @@ import MenuLateral from "./menu-lateral";
 import Footer from "./footer";
 import MenuAñadir from "./menu-añadir";
 import { db } from "../credenciales";
-import { collection, getDocs, updateDoc, doc } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 
 
@@ -25,7 +25,7 @@ function PorCobrar() {
           id: doc.id,
           ...doc.data(),
         }));
-        const docsFilter = docsArray.filter(doc => doc.precio - doc.pago > 0);
+        const docsFilter = docsArray.filter(doc => doc.precio - doc.pago > 0 && doc.cliente !== "INVENTARIO");
         setPedidos(docsFilter);
       } catch (error) {
         console.error("Error al cargar los documentos", error);

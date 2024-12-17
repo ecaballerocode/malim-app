@@ -5,7 +5,6 @@ import Footer from "./footer";
 import MenuAñadir from "./menu-añadir";
 import { db } from "../credenciales";
 import { collection, getDocs } from "firebase/firestore";
-import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 
 
@@ -13,6 +12,8 @@ function Inventario() {
   const [menuAbierto, setmenuAbierto] = useState(false);
   const [menuAñadir, setmenuAñadir] = useState(false);
   const [prendasDisponibles, setPrendasDisponibles] = useState([]);
+  const [suma, setSuma] = useState(0)
+
 
   const navigate = useNavigate();  // Hook para navegación
   
@@ -22,18 +23,6 @@ function Inventario() {
   
   // Nuevo estado para la barra de búsqueda
   const [busqueda, setBusqueda] = useState("");
-
-  // Array con las categorías disponibles
-  const categorias = [
-    "Abrigos", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
-    "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas",
-    "Maxi vestidos", "Maxi cobijas", "Ensambles", "Pantalones", "Pants",
-    "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
-    "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos",
-    "Camisas", "Gorros", "Calzado", "Chalecos","Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres",
-    "Overoles", "Otros", "Sin Categoria", "Niños uisex", "Gabardinas"
-  ];
-
   // Función para manejar el estado del menú lateral
   const manejadorMenu = () => {
     setmenuAbierto(!menuAbierto);
@@ -76,6 +65,12 @@ function Inventario() {
     });
   };
 
+  useEffect(()=>{
+    const filtroPagado = prendasDisponibles.filter(doc => doc.cliente === "INVENTARIO");
+    const sumaTotal = filtroPagado.reduce((suma, doc) => suma + doc.precio, 0);
+    setSuma(sumaTotal);
+  }, [prendasDisponibles]);
+
   return (
     <div className="min-h-screen bg-pink-100">
       <header className="relative">
@@ -92,6 +87,10 @@ function Inventario() {
       </div>
       {/* Contenedor principal */}
       <main className="pb-16 pt-10">
+      <div className="flex flex-row justify-center text-center">
+          <p className="font-bold text-2xl text-pink-600">Total:</p>
+          <p className="ml-3 font-bold text-2xl text-pink-600">${suma}</p>
+        </div>
         {/* Sección de filtros y barra de búsqueda */}
         <div className="flex lg:flex-row flex-col justify-end">
           {/* Filtros de proveedor y categoría */}

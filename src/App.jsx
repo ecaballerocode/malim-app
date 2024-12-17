@@ -2,7 +2,6 @@ import React, {useState, useEffect} from "react";
 import Header from "./componentes/header";
 import MenuLateral from "./componentes/menu-lateral";
 import Footer from "./componentes/footer";
-import axios from "axios";
 import MenuAñadir from "./componentes/menu-añadir";
 import logo from "./logo-negro.png";
 import arregloFrases from "./arregloFrases";
@@ -23,27 +22,13 @@ function App(){
 //Estado para manejar el menu laeral
   const [menuAbierto, setmenuAbierto] = useState(false);
 //Estado que guarda la frase del dia
-  const [frase, setFrase] = useState("")
-  const [autor, setAutor] = useState("")
   //Estado para controlar el menu añadir
   const [menuAñadir, setmenuAñadir] = useState(false);
   const [pedidos, setPedidos] = useState([]);
 
 
 //creamos el useffect que va a pedir la frase a la api cuando se renderice el componente
-  useEffect (()=>{
-    const obtenerFrase = async () => {
-      try {
-        const respuesta = await axios.get("/api/phrase");
-        setFrase(respuesta.data.phrase);
-        setAutor(respuesta.data.author)
-      } catch (error) {
-        console.error("Error al obtener o traducir")
-      }
-    }
-    obtenerFrase();
-  }, []); 
-
+  
   useEffect(() => {
     const fetchPedidos = async () => {
       try {
@@ -93,13 +78,15 @@ function App(){
   }
 
   const inversion = () =>{
-    const pedidosFiltrados = pedidos.filter((pedido) => pedido.comprado === false);
-    return pedidosFiltrados.reduce((acumulador, pedido)=>acumulador + pedido.costo, 0);
+    const filtroPagadoSuma = pedidos.filter(doc => doc.pagado === false || doc.pagado === undefined);
+    const filtroComprado = filtroPagadoSuma.filter(doc => doc.comprado === false)
+    return filtroComprado.reduce((total, pedido) => total + pedido.costo, 0);
   }
 
   //Fncion para calcular cuanto hay po cobrar
   const porCobrar = () => {
-    return pedidos.reduce((suma, doc)=> 
+    const filtroInventario = pedidos.filter(doc => doc.cliente !== "INVENTARIO")
+    return filtroInventario.reduce((suma, doc)=> 
      suma + (doc.precio - doc.pago), 0)
 }
 

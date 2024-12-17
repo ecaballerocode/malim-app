@@ -109,6 +109,9 @@ function FormVender() {
             proveedor: data.proveedor,
             fotos: data.fotos || [],
           });
+          if (data.fotos && data.fotos.length > 0) {
+            setImagenSeleccionada(data.fotos[0]);
+          }
         }
       } catch (error) {
         console.error("Error al obtener la prenda:", error);
@@ -199,8 +202,6 @@ function FormVender() {
       const handleSubmit = async (e) => {
         e.preventDefault();
 
-      const clienteNombre = clientes.find(cliente => cliente.id === Data.cliente)?.cliente; // Buscar el nombre del cliente
-
 
       const dataToSubmit = {
         ...Data,
@@ -255,13 +256,27 @@ function FormVender() {
             </div>
             <main className="pb-16 pt-10 flex lg:flex-row flex-col justify-between">
                 <div className="h-auto border-2 p-5 rounded-lg shadow-xl border-pink-200 m-10 flex justify-center flex-col lg:flex-row">
-                    <Slider {...settings} className="w-64 mx-auto flex justify-center">
+                {Data.fotos.length > 1 ? (
+                      <Slider {...settings} className="w-64 pt-12 mb-5 mx-auto">
                         {Data.fotos.map((foto, index) => (
-                        <div key={index}>
-                            <img src={foto} alt={`Prenda ${index}`} className="w-64 h-auto rounded-lg"/>
-                        </div>
-                    ))}
-                    </Slider>
+                          <div key={index}>
+                            <img
+                              src={foto}
+                              alt={`Prenda ${index}`}
+                              className="w-auto h-64 rounded-lg"
+                            />
+                          </div>
+                        ))}
+                      </Slider>
+                    ) : (
+                      <div className="w-64 pt-12 mb-5 mx-auto">
+                        <img
+                          src={Data.fotos[0]}
+                          alt="Prenda"
+                          className="w-auto h-64 rounded-lg"
+                        />
+                      </div>
+                    )}
                     <div className="lg:ml-5 lg:mt-10 mt-1">
                         <p className="mb-5 font-bold text-lg text-pink-700 m-2">{Data.prenda}</p>
                         <p className="text-pink-600 m-2">{Data.proveedor}</p>
@@ -308,18 +323,6 @@ function FormVender() {
                           value={Data.color}
                           onChange={handleChange}
                           placeholder="Seleccionar color"
-                          required
-                          className="px-2 rounded-md h-8 shadow-sm"
-                          />
-                    </div>
-                    <div className="flex flex-col pt-2">
-                      <label className="px-2 text-pink-800 font-bold">Pago:</label>
-                      <input
-                          name="pago"
-                          type="number"
-                          value={Data.pago}
-                          onChange={handleChange}
-                          placeholder="¿Cuanto ha pagado?"
                           required
                           className="px-2 rounded-md h-8 shadow-sm"
                           />

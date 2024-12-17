@@ -34,9 +34,8 @@ function Compras() {
   }, []);
 
   useEffect(()=>{
-    const sumaTotal = pedidos.reduce((suma, doc)=> {
-      return suma + doc.costo;
-    }, 0)
+    const filtroPagado = pedidos.filter(doc => doc.pagado === false || doc.pagado === undefined);
+    const sumaTotal = filtroPagado.reduce((suma, doc) => suma + doc.costo, 0);
     setSuma(sumaTotal);
   }, [pedidos]);
 
@@ -78,6 +77,31 @@ function Compras() {
         alert("Ocurrió un error al intentar actualizar el pedido.");
       }
     };
+
+    const marcarComoPagado = async (pedidoId) => {
+      // Mostrar confirmación al usuario
+      const confirmacion = window.confirm("¿Estás seguro de que pagaste este pedido?");
+      if (!confirmacion) return;
+  
+      try {
+        // Actualizar el documento en Firestore
+        const pedidoRef = doc(db, "pedidos", pedidoId);
+        await updateDoc(pedidoRef, { pagado: true });
+
+        setPedidos((prevPedidos) =>
+          prevPedidos.map((pedido) =>
+            pedido.id === pedidoId ? { ...pedido, pagado: true } : pedido
+          )
+        );
+  
+        // Opcional: Mostrar un mensaje de éxito
+        alert("El pedido fue marcado como pagado.");
+      } catch (error) {
+        console.error("Error al actualizar el pedido:", error);
+        alert("Ocurrió un error al intentar actualizar el pedido.");
+      }
+    };
+
 
     const marcarComoCancelado = async (pedidoId) => {
       // Mostrar confirmación al usuario
@@ -121,8 +145,8 @@ function Compras() {
         <div className="productos-container bg-pink-100 mx-5 mb-5 space-y-5">
   {Object.keys(pedidosAgrupados).map((proveedor) => {
     // Sumar los costos de los pedidos de este proveedor
-    const sumaProveedor = pedidosAgrupados[proveedor].reduce((total, pedido) => total + pedido.costo, 0);
-
+    const filtroPagadoSuma = pedidosAgrupados[proveedor].filter(doc => doc.pagado === false || doc.pagado === undefined);
+    const sumaProveedor = filtroPagadoSuma.reduce((total, pedido) => total + pedido.costo, 0);
     return (
       <div key={proveedor} className="h-auto border-2 rounded-lg shadow-xl border-pink-200 p-3">
         {/* Separador con el nombre del proveedor */}
@@ -138,6 +162,9 @@ function Compras() {
           {pedidosAgrupados[proveedor].map((pedido) => (
             <div key={pedido.id} className="w-4/5 lg:w-1/4 h-auto bg-pink-200 flex-shrink-0 bg-white border rounded-lg shadow-sm mb-2">
               {/* Información del producto */}
+              {pedido.pagado && (
+                <div className='w-full h-6 bg-pink-600 text-center text-white'>Pagado</div>
+              )}           
               <div className="lg:h-64 h-64 w-full">
                 {pedido.fotos ? (
                   <img
@@ -162,10 +189,14 @@ function Compras() {
                   <p className="">{pedido.cliente}</p>
                 </div>
               </div>
-              <div className="flex flex-row justify-between text-white text-center px-2 pb-2">
+              <div className="flex flex-row justify-between text-xs text-white text-center px-2 pb-2">
                 <button className="px-2 bg-pink-400 text-white rounded-lg mx-2 shadow-xl"
                 onClick={()=>marcarComoComprado(pedido.id)}>
                   Comprado
+                </button>
+                <button className="px-2 bg-pink-400 text-white rounded-lg mx-2 shadow-xl"
+                onClick={()=>marcarComoPagado(pedido.id)}>
+                  Pagado
                 </button>
                 <button className="px-2 bg-pink-600 text-white rounded-lg mx-2 shadow-xl"
                 onClick={()=>marcarComoCancelado(pedido.id)}>

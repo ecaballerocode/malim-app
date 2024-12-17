@@ -224,13 +224,27 @@ function DetallePrenda() {
         <MenuAñadir menuAñadir={menuAñadir} />
       </div>
         {/* Carrusel de imágenes */}
-      <Slider {...settings} className="w-64 pt-12 mb-5 mx-auto">
-        {formData.fotos.map((foto, index) => (
-          <div key={index}>
-            <img src={foto} alt={`Prenda ${index}`} className="w-auto h-64 rounded-lg"/>
+        {formData.fotos.length > 1 ? (
+          <Slider {...settings} className="w-64 pt-12 mb-5 mx-auto">
+            {formData.fotos.map((foto, index) => (
+              <div key={index}>
+                <img
+                  src={foto}
+                  alt={`Prenda ${index}`}
+                  className="w-auto h-64 rounded-lg"
+                />
+              </div>
+            ))}
+          </Slider>
+        ) : (
+          <div className="w-64 pt-12 mb-5 mx-auto">
+            <img
+              src={formData.fotos[0]}
+              alt="Prenda"
+              className="w-auto h-64 rounded-lg"
+            />
           </div>
-        ))}
-      </Slider>
+        )}
       {/* Formulario de edición */}
       <main className="pb-20 flex flex-center justify-center">
       <form onSubmit={handleSubmit} className="lg:border-2 lg:shadow-xl px-5 lg:py-2 pb-20 mt-2 rounded-lg border-pink-200 max-w-lg w-full">

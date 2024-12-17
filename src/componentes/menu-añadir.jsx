@@ -29,7 +29,7 @@ function MenuAñadir({menuAñadir}){
                         </Link>
                     </button>
                     <button className="text-white text-center flex items-center flex-col">
-                        <Link className="text-center flex items-center flex-col">
+                        <Link to="/AñadirPedidoDirecto" className="text-center flex items-center flex-col">
                             <MdOutlineInventory className="text-3xl"/>
                             <p className="text-xs">Pedido</p>
                         </Link>

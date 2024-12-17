@@ -23,6 +23,8 @@ function FormAñadirDisponible() {
   const [menuAbierto, setmenuAbierto] = useState(false);
   const [menuAñadir, setmenuAñadir] = useState(false);
   const [proveedores, setProveedores] = useState([]);
+  const [fecha, setFecha] = useState("");
+
 
   const manejadorMenu = () => {
     setmenuAbierto(!menuAbierto);
@@ -157,6 +159,12 @@ function FormAñadirDisponible() {
     }
   };
 
+  const manejadorFecha = (e) => {
+    const nuevaFecha = e.target.value;
+    setFecha(nuevaFecha);
+    setFormData({...formData, fecha: nuevaFecha})
+  };
+
   return (
     <div className="bg-pink-100 min-h-screen">
       <header className="relative">
@@ -169,7 +177,7 @@ function FormAñadirDisponible() {
       <div>
         <MenuAñadir menuAñadir={menuAñadir} />
       </div>
-      <div className="flex flex-center justify-center pt-10">
+      <div className="flex flex-center justify-center pt-10 pb-20">
         <form
           onSubmit={handleSubmit}
           className="lg:border-2 lg:shadow-xl px-5 lg:py-2 pb-20 rounded-lg border-pink-200 mt-10 max-w-lg w-full"
@@ -188,6 +196,11 @@ function FormAñadirDisponible() {
             >
               Elegir imágenes
             </label>
+          </div>
+          <div className="flex flex-col pt-2">
+            <label className="px-2 text-pink-800 font-bold" htmlFor="datePicker">Fecha</label>
+            <input className="w-full px-2 h-8 bg-white rounded-md shadow-sm" type="date" id="datePicker" value={fecha}
+            onChange={manejadorFecha} placeholder="Fecha"/>
           </div>
           <div className="flex flex-col pt-4">
             <label className="px-2 text-pink-800 font-bold">Prenda:</label>

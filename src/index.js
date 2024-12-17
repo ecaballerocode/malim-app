@@ -18,6 +18,7 @@ import AgregarPago from './componentes/agregar-pago';
 import Inventario from './componentes/inventario';
 import FormVenderInventario from './componentes/form-vender-inventario';
 import Estadisticas from './componentes/estadisticas';
+import AñadirPedidoDirecto from './componentes/añadir-pedido-directo';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -40,6 +41,7 @@ root.render(
       <Route path='Inventario' element={<Inventario />}/>
       <Route path='FormVenderInventario/:id' element={<FormVenderInventario />}/>
       <Route path='Estadisticas' element={<Estadisticas />}/>
+      <Route path='AñadirPedidoDirecto' element={<AñadirPedidoDirecto />}/>
     </Routes>
   </Router>
 );
