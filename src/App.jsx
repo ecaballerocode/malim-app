@@ -12,7 +12,6 @@ import { collection, getDocs } from "firebase/firestore";
 
 
 
-//Pagina principal
 
 //Establecer el motor de traduccion
 
