@@ -189,16 +189,16 @@ function Compras() {
                   <p className="">{pedido.cliente}</p>
                 </div>
               </div>
-              <div className="flex flex-row justify-between text-xs text-white text-center px-2 pb-2">
-                <button className="px-2 bg-pink-400 text-white rounded-lg mx-2 shadow-xl"
+              <div className="flex flex-row justify-between text-xs text-white text-center pb-2">
+                <button className="px-2 bg-pink-400 text-white rounded-lg mx-1 shadow-xl"
                 onClick={()=>marcarComoComprado(pedido.id)}>
                   Comprado
                 </button>
-                <button className="px-2 bg-pink-400 text-white rounded-lg mx-2 shadow-xl"
+                <button className="px-2 bg-pink-400 text-white rounded-lg mx-1 shadow-xl"
                 onClick={()=>marcarComoPagado(pedido.id)}>
                   Pagado
                 </button>
-                <button className="px-2 bg-pink-600 text-white rounded-lg mx-2 shadow-xl"
+                <button className="px-2 bg-pink-600 text-white rounded-lg mx-1 shadow-xl"
                 onClick={()=>marcarComoCancelado(pedido.id)}>
                   Cancelado
                 </button>

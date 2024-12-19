@@ -157,7 +157,7 @@ function FormVender() {
               cliente: "",
               fecha:"",
               color:"",
-              pago:"",
+              pago:0,
               lugar:"",
               entrega:"",
               comprado:false,
@@ -210,7 +210,7 @@ function FormVender() {
         entrega: Data.entrega?.label || "",
         talla: Data.talla?.label || "",
         fotos: imagenSeleccionada,
-        pago: Number(Data.pago),
+        pago: 0,
         comprado: !!Data.comprado, // Asegurar booleano
         entregado: !!Data.entregado
       };
