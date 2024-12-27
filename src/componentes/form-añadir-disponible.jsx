@@ -49,7 +49,7 @@ function FormAñadirDisponible() {
 
   const tallas = [
     "Inf 2-4", "Inf 6-8", "Inf 10-12", "juv 14-16", "XS (3-5)", "(28-30)", "(30-32)", "(32-34)",
-    "(34-36)","(36-38)", "(38-40)", "(40-42)", "Unitalla", "5", "7", "9", "11", "13",
+    "(34-36)","(36-38)", "(38-40)", "(40-42)", "(32-36)", "Unitalla", "5", "7", "9", "11", "13",
     "15", "17", "4", "6", "8", "10", "12", "14", "16", "30", "32", "34", "36", "38",
     "40", "42"
   ];
@@ -153,6 +153,7 @@ function FormAñadirDisponible() {
         proveedor: null,
       });
       setFotos([]);
+      setFecha("")
     } catch (error) {
       alert("Hubo un error al agregar el documento.");
       console.error("Error al agregar el producto:", error);

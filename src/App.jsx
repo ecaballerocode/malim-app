@@ -56,19 +56,28 @@ function App(){
     setmenuAñadir(!menuAñadir);
   }
 
-  //Funciones y estados para manejar la solicitud de frases
+  //Funciones para obtener el idice de la frase del dia
 
-  const [quote, setQuote] = useState("")
+  const getIndexForToday = () => {
+    const today = new Date();
+    const startDate = new Date(1970, 0, 1); // Fecha fija
+    const diff = today - startDate; // Diferencia en milisegundos
+    const oneDay = 1000 * 60 * 60 * 24; // Milisegundos en un día
+    const totalDays = Math.floor(diff / oneDay); // Días totales desde la fecha fija
+    return totalDays % arregloFrases.length; // Índice dentro del rango
+  };
 
-  const fetchRandomQuote = () =>{
-   const fraseRandom = arregloFrases[Math.floor(Math.random()*arregloFrases.length)]
-    setQuote(fraseRandom);
-  }
+  const [fraseDelDia, setFraseDelDia] = useState("");
+
+  useEffect(() => {
+    const index = getIndexForToday();
+    setFraseDelDia(arregloFrases[index]);
+  }, [arregloFrases]);
 
   //Funcion para enviar la frase por whatsapp
 
-  const enviarWhatsapp = (quote) =>{
-    const url = `https://wa.me/?text=${encodeURIComponent(quote)}`;
+  const enviarWhatsapp = (fraseDelDia) =>{
+    const url = `https://wa.me/?text=${encodeURIComponent(fraseDelDia)}`;
     window.open(url, "_blank");
   }
 
@@ -113,12 +122,9 @@ const utilidad = () => {
         </div>
         {/*Div en el que se va a ver la frase del dia */}
         <div className="bg-pink-400 mx-10 p-2 h-32 lg:mx-64 shadow-xl text-center rounded-lg flex flex-col items-center justify-center relative text-white">
-          <p className="flex-grow font-bold mt-10">{quote}</p>
-          <div className="flex flex-row mt-auto justify-between w-full">
-            <button className="text-pink-100 mx-3 px-2" onClick={fetchRandomQuote}>
-              <IoMdRefresh className="text-2xl"/>
-            </button>
-            <button className="text-pink-100 mx-3 px-2" onClick={() => enviarWhatsapp(quote)}>
+          <p className="flex-grow font-bold mt-10">{fraseDelDia}</p>
+          <div className="flex flex-row mt-auto justify-end w-full">
+            <button className="text-pink-100 mx-3 px-2" onClick={() => enviarWhatsapp(fraseDelDia)}>
               <FaShare className="text-xl"/>
             </button>
           </div>
