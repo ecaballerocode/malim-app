@@ -198,6 +198,13 @@ function DetallePrenda() {
     setFormData({ ...formData, proveedor: selectedOption });
   };
 
+  const enviarWhatsapp = (id) =>{
+    const message = encodeURIComponent("Conoce nuestras prendas aqui: ")
+    const urlId = encodeURIComponent(`https://malim-shop.vercel.app/DetallePrenda/${id}`)
+    const url = `https://wa.me/?text=${message}${urlId}`;
+    window.open(url, "_blank");
+  }
+
   // Configuración del carrusel
   const settings = {
     dots: true,
@@ -342,6 +349,10 @@ function DetallePrenda() {
           <button className="mt-2 py-2 px-4 bg-red-600 text-white rounded-md cursor-pointer hover:bg-pink-200"
             type="button" onClick={handleDelete}>
             Eliminar prenda
+          </button>
+          <button className="mt-2 py-2 px-4 bg-green-600 text-white rounded-md cursor-pointer hover:bg-pink-200"
+            type="button" onClick={() => enviarWhatsapp(id)}>
+            Compartir
           </button>
         </div>
       </form>

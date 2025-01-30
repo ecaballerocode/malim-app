@@ -65,7 +65,7 @@ function AñadirPedidoDirecto() {
     "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
     "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos",
     "Camisas", "Gorros", "Calzado", "Chalecos","Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres",
-    "Overoles", "Otros", "Sin Categoria", "Niños uisex", "Gabardinas"
+    "Overoles", "Otros", "Sin Categoria", "Niños uisex", "Gabardinas", "Vestidos"
   ];
 
   const formaEntrega = ["Punto de venta", "A domicilio"]
