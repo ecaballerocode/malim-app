@@ -19,10 +19,11 @@ import Inventario from './componentes/inventario';
 import FormVenderInventario from './componentes/form-vender-inventario';
 import Estadisticas from './componentes/estadisticas';
 import AñadirPedidoDirecto from './componentes/añadir-pedido-directo';
+import Descripciones from "./componentes/Descripciones";
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
-  <Router basename='malim-app'>
+  <Router>
     <Routes>
       <Route path='/' element={<App />}/>
       <Route path='Disponible' element={<Disponible />}/>
@@ -42,6 +43,7 @@ root.render(
       <Route path='FormVenderInventario/:id' element={<FormVenderInventario />}/>
       <Route path='Estadisticas' element={<Estadisticas />}/>
       <Route path='AñadirPedidoDirecto' element={<AñadirPedidoDirecto />}/>
+      <Route path='Descripciones' element={<Descripciones />}/>
     </Routes>
   </Router>
 );
