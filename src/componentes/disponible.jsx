@@ -34,7 +34,7 @@ function Disponible() {
     "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
     "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos",
     "Camisas", "Gorros", "Calzado", "Chalecos","Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres",
-    "Overoles", "Otros", "Sin Categoria", "Niños uisex", "Gabardinas", "Vestidos"
+    "Overoles", "Otros", "Sin Categoria", "Niños uisex", "Gabardinas", "Vestidos", "Maternidad"
   ];
 
   // Convertir categorías a formato compatible con Select

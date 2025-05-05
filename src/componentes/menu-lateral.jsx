@@ -6,6 +6,7 @@ import { FaRegImage } from "react-icons/fa";
 import { GoPackageDependents } from "react-icons/go";
 import { ImStatsDots } from "react-icons/im";
 import { CiTextAlignLeft } from "react-icons/ci";
+import { FaPerson } from "react-icons/fa6";
 
 function MenuLateral({ menuAbierto }) {
   return (
@@ -54,7 +55,13 @@ function MenuLateral({ menuAbierto }) {
         <button className="text-pink-800">
           <Link to="/Descripciones" className="flex flex-row">
             <CiTextAlignLeft className="text-xl" />
-            <span className="ml-2">Descripciones</span>
+            <span className="ml-2">Base de datos</span>
+          </Link>
+        </button>
+        <button className="text-pink-800">
+          <Link to="/Clientes" className="flex flex-row">
+            <FaPerson className="text-xl" />
+            <span className="ml-2">Clientes</span>
           </Link>
         </button>
       </div>

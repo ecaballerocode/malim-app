@@ -11,7 +11,7 @@ import Papa from "papaparse"
 function Disponible() {
   const [menuAbierto, setmenuAbierto] = useState(false);
   const [menuAñadir, setmenuAñadir] = useState(false);
-  const [prendasDisponibles, setPrendasDisponibles] = useState([]);
+  const [pedidos, setPedidos] = useState([]);
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
 
@@ -27,14 +27,16 @@ const exportarCSV = () => {
 
   // Convertir los datos a formato CSV
   const csv = Papa.unparse(
-    datosFiltrados.map(({ id, prenda, categoria, talla, precio, detalles, fecha }) => ({
-      ID: id,
-      Prenda: prenda,
-      Categoría: categoria,
-      Tallas: talla.join(", "), // Unir las tallas en una sola celda
-      Precio: precio,
-      Detalles: detalles,
+    datosFiltrados.map(({ fecha, cliente, prenda, categoria, talla, costo, precio, color, lugar }) => ({
       Fecha: fecha,
+      Cliente: cliente,
+      Prenda: prenda,
+      Categoria: categoria,
+      Talla: talla,
+      Costo: costo,
+      Precio: precio,
+      Color: color,
+      Lugar: lugar
     }))
   );
 
@@ -43,7 +45,7 @@ const exportarCSV = () => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.setAttribute("download", "prendas_filtradas.csv");
+  link.setAttribute("download", "pedidos_filtrados.csv");
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -64,7 +66,7 @@ const exportarCSV = () => {
   useEffect(() => {
     const fetchDocuments = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, "disponible"));
+        const querySnapshot = await getDocs(collection(db, "pedidos"));
         const docsArray = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
@@ -77,7 +79,7 @@ const exportarCSV = () => {
           return fechaB.localeCompare(fechaA); // Ordenar de más reciente a más antiguo
         });
 
-        setPrendasDisponibles(docsArray);
+        setPedidos(docsArray);
       } catch (error) {
         console.error("Error al cargar los documentos", error);
       }
@@ -87,7 +89,7 @@ const exportarCSV = () => {
   
   // Función para filtrar las prendas según los filtros seleccionados y la búsqueda
   const filtrarPrendas = () => {
-    return prendasDisponibles.filter((doc) => {
+    return pedidos.filter((doc) => {
       const pedidoFecha = new Date(doc.fecha);
       const inicio = fechaInicio ? new Date(fechaInicio) : null;
       const fin = fechaFin ? new Date(fechaFin) : null;
@@ -104,7 +106,7 @@ const exportarCSV = () => {
       <header className="relative">
         <Header menuAbierto={menuAbierto} manejadorMenu={manejadorMenu} />
         <h1 className="fixed inset-x-0 transform pt-2 text-center pointer-events-none font-bold text-xl text-white z-50">
-          Descripciones
+          Base de datos
         </h1>
       </header>
       <div>
@@ -143,21 +145,31 @@ const exportarCSV = () => {
           {filtrarPrendas().map((doc) => (
             <div className="flex justify-between">
               <div className="w-1/5 border-b-2 border-r-2 border-black">
+                <p>{doc.fecha}</p>
+              </div>
+              <div className="w-1/5 border-b-2 border-r-2 border-black">
+                <p>{doc.cliente}</p>
+              </div>
+              <div className="w-1/5 border-b-2 border-r-2 border-black">
                 <p>{doc.prenda}</p>
               </div>
               <div className="w-1/5 border-b-2 border-r-2 border-black">
                 <p className="text-center">{doc.categoria}</p>
               </div>
               <div className="w-1/5 border-b-2 border-r-2 border-black">
-                {doc.talla.map((talla) => (
-                  <p>{talla}</p>
-                ))}
+                <p>{doc.talla}</p>
+              </div>
+              <div className="w-1/5 border-b-2 border-r-2 border-black">
+                <p>{doc.costo}</p>
               </div>
               <div className="w-1/5 border-b-2 border-r-2 border-black">
                 <p className="text-center">{doc.precio}</p>
               </div>
               <div className="w-1/5 border-b-2 border-r-2 border-black">
-                <p>{doc.detalles}</p>
+                <p>{doc.color}</p>
+              </div>
+              <div className="w-1/5 border-b-2 border-r-2 border-black">
+                <p>{doc.lugar}</p>
               </div>
             </div>
           ))}

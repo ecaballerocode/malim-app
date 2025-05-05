@@ -44,14 +44,14 @@ function FormAñadirDisponible() {
     "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
     "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos",
     "Camisas", "Gorros", "Calzado", "Chalecos","Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres",
-    "Overoles", "Otros", "Sin Categoria", "Niños uisex", "Gabardinas", "Vestidos"
+    "Overoles", "Otros", "Sin Categoria", "Niños uisex", "Gabardinas", "Vestidos", "Maternidad"
   ];
 
   const tallas = [
     "Inf 2-4", "Inf 6-8", "Inf 10-12", "juv 14-16", "XS (3-5)", "(28-30)", "(30-32)", "(32-34)",
-    "(34-36)","(36-38)", "(38-40)", "(40-42)", "(32-36)", "Unitalla", "5", "7", "9", "11", "13",
-    "15", "17", "4", "6", "8", "10", "12", "14", "16", "30", "32", "34", "36", "38",
-    "40", "42"
+    "(34-36)","(36-38)", "(38-40)", "(40-42)", "(32-36)", "Unitalla","3", "5", "7", "9", "11", "13",
+    "15", "17", "19", "21", "23", "25", "27", "4", "6", "8", "10", "12", "14", "16", "30", "32", "34", "36", "38",
+    "40", "42", "44"
   ];
 
   const categoriaOptions = categorias.map((cat) => ({
