@@ -9,6 +9,7 @@ import { FaShare } from "react-icons/fa";
 import { db } from "./credenciales";
 import { collection, getDocs } from "firebase/firestore";
 
+
 function App() {
 
   //Estado para manejar el menu laeral
@@ -103,10 +104,10 @@ function App() {
   }
 
   const inversion = () => {
-    const filtroPagadoSuma = pedidos.filter(doc => doc.pagado === false || doc.pagado === undefined);
-    const filtroComprado = filtroPagadoSuma.filter(doc => doc.comprado === false)
-    return filtroComprado.reduce((total, pedido) => total + pedido.costo, 0);
-  }
+  const filtroPagadoSuma = pedidos.filter(doc => doc.pagado === false || doc.pagado === undefined);
+  const filtroComprado = filtroPagadoSuma.filter(doc => doc.comprado === false);
+  return filtroComprado.reduce((total, pedido) => total + Number(pedido.costo || 0), 0);
+};
 
   //Fncion para calcular cuanto hay po cobrar
   const porCobrar = () => {
@@ -132,7 +133,7 @@ function App() {
         <MenuAñadir menuAñadir={menuAñadir} />
       </div>
       {/*creamos el contenedor pricpal */}
-      <main className="flex-1">
+      <main className="flex-1 overflow-y-auto px-2">
         <div className="flex justify-center w-full h-16">
           {/*Imagen del logotipo */}
           <img src={logo} alt="logo de malim" />

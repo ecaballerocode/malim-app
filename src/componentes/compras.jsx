@@ -35,7 +35,7 @@ function Compras() {
 
   useEffect(()=>{
     const filtroPagado = pedidos.filter(doc => doc.pagado === false || doc.pagado === undefined);
-    const sumaTotal = filtroPagado.reduce((suma, doc) => suma + doc.costo, 0);
+    const sumaTotal = filtroPagado.reduce((suma, doc) => suma + Number(doc.costo), 0);
     setSuma(sumaTotal);
   }, [pedidos]);
 
@@ -146,7 +146,7 @@ function Compras() {
   {Object.keys(pedidosAgrupados).map((proveedor) => {
     // Sumar los costos de los pedidos de este proveedor
     const filtroPagadoSuma = pedidosAgrupados[proveedor].filter(doc => doc.pagado === false || doc.pagado === undefined);
-    const sumaProveedor = filtroPagadoSuma.reduce((total, pedido) => total + pedido.costo, 0);
+    const sumaProveedor = filtroPagadoSuma.reduce((total, pedido) => total + Number(pedido.costo), 0);
     return (
       <div key={proveedor} className="h-auto border-2 rounded-lg shadow-xl border-pink-200 p-3">
         {/* Separador con el nombre del proveedor */}
