@@ -113,9 +113,15 @@ function AgregarPago() {
 
     const dataToSubmit = {
       ...Data,
-      pagos: [...Data.pagos, { fecha: fecha, monto: monto },],
+      pagos: [...Data.pagos, { fecha: fecha, monto: monto }],
       pago: Data.pago + monto,
     };
+
+    // Elimina precioOriginal si no existe
+    if (!dataToSubmit.precioOriginal) {
+      delete dataToSubmit.precioOriginal;
+    }
+
 
     try {
       await updateDoc(doc(db, "pedidos", id), dataToSubmit);
