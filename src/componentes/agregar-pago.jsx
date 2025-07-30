@@ -114,7 +114,7 @@ function AgregarPago() {
     const dataToSubmit = {
       ...Data,
       pagos: [...Data.pagos, { fecha: fecha, monto: monto }],
-      pago: Data.pago + monto,
+      pago: Number(Data.pago) + Number(monto),
     };
 
     // Elimina precioOriginal si no existe
@@ -131,7 +131,7 @@ function AgregarPago() {
       setData((prevState) => ({
         ...prevState,
         pagos: [...prevState.pagos, { fecha, monto }],
-        pago: prevState.pago + monto,
+        pago: Number(prevState.pago) + Number(monto),
       }));
 
     } catch (error) {
@@ -220,7 +220,10 @@ function AgregarPago() {
                 </div>
                 <div className="flex flex-col">
                   <p className="text-pink-600 text-sm">Restante:</p>
-                  <p className="text-pink-400 font-bold">${Data.precio - Data.pago}</p>
+                  <p className="text-pink-400 font-bold">
+                    ${Number(Data.precio) - Number(Data.pago)}
+                  </p>
+
                 </div>
               </div>
               <div>
