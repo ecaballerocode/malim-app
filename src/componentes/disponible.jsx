@@ -28,13 +28,13 @@ function Disponible() {
 
   // Array con las categorías disponibles
   const categorias = [
-    "Abrigos", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
+    "Abrigos", "Accesorios", "Patrio", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
     "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas",
     "Maxi vestidos", "Maxi cobijas", "Ensambles", "Pantalones", "Pants",
     "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
     "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos",
     "Camisas", "Gorros", "Calzado", "Chalecos","Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres",
-    "Overoles", "Otros", "Sin Categoria", "Niños uisex", "Gabardinas", "Vestidos", "Maternidad"
+    "Overoles", "Otros", "Sin Categoria", "Niños uisex", "Gabardinas", "Vestidos"
   ];
 
   // Convertir categorías a formato compatible con Select

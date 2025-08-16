@@ -52,14 +52,14 @@ function AñadirPedidoDirecto() {
   ]
 
   const tallas = [
-    "Inf 2-4", "Inf 6-8", "Inf 10-12", "juv 14-16", "XS (3-5)", "(28-30)", "(30-32)", "(32-34)",
-    "(34-36)","(36-38)", "(38-40)", "(40-42)", "(32-36)", "Unitalla", "5", "7", "9", "11", "13",
-    "15", "17", "4", "6", "8", "10", "12", "14", "16", "30", "32", "34", "36", "38",
-    "40", "42"
+    "(Inf 2-4)", "(Inf 6-8)", "(Inf 10-12)", "(juv 14-16)", "(XS 3-5)", "(28-30)", "(30-32)", "(30-34)", "(32-36)", "(32-34)",
+    "(34-36)","(36-38)", "(38-40)", "(40-42)", "Unitalla", "(5)", "(7)", "(9)", "(11)", "(13)",
+    "(15)", "(17)", "(4)", "(6)", "(8)", "(10)", "(12)", "(14)", "(16)", "(28)", "(30)", "(32)", "(34)", "(36)", "(38)",
+    "(40)", "(42)"
   ];
 
   const categorias = [
-    "Abrigos", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
+    "Abrigos", "Accesorios", "Patrio", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
     "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas",
     "Maxi vestidos", "Maxi cobijas", "Ensambles", "Pantalones", "Pants",
     "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
