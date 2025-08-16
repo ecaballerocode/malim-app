@@ -28,7 +28,7 @@ function Disponible() {
 
   // Array con las categorías disponibles
   const categorias = [
-    "Abrigos", "Accesorios", "Patrio", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
+    "Abrigos", "Accesorios", "Patria", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
     "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas",
     "Maxi vestidos", "Maxi cobijas", "Ensambles", "Pantalones", "Pants",
     "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
