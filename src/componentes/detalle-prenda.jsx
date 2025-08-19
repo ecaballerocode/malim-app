@@ -10,6 +10,7 @@ import Header from "./header";
 import MenuLateral from "./menu-lateral";
 import Footer from "./footer";
 import MenuAñadir from "./menu-añadir";
+import axios from "axios"; // 👈 necesitas axios aquí también
 
 function DetallePrenda() {
   const { id } = useParams(); // Obtiene el ID de la prenda desde la URL
@@ -29,6 +30,8 @@ function DetallePrenda() {
   const [menuAbierto, setmenuAbierto] = useState(false);
   const [menuAñadir, setmenuAñadir] = useState(false);
 
+
+
   const manejadorMenu = () => {
     setmenuAbierto(!menuAbierto);
   };
@@ -44,13 +47,13 @@ function DetallePrenda() {
     "Maxi vestidos", "Maxi cobijas", "Ensambles", "Pantalones", "Pants",
     "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
     "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos",
-    "Camisas", "Gorros", "Calzado", "Chalecos","Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres",
+    "Camisas", "Gorros", "Calzado", "Chalecos", "Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres",
     "Overoles", "Otros", "Sin Categoria", "Niños uisex", "Gabardinas", "Vestidos"
   ];
 
   const tallas = [
     "(Inf 2-4)", "(Inf 6-8)", "(Inf 10-12)", "(juv 14-16)", "(XS 3-5)", "(28-30)", "(30-32)", "(30-34)", "(32-36)", "(32-34)",
-    "(34-36)","(36-38)", "(38-40)", "(40-42)", "Unitalla", "(5)", "(7)", "(9)", "(11)", "(13)",
+    "(34-36)", "(36-38)", "(38-40)", "(40-42)", "Unitalla", "(5)", "(7)", "(9)", "(11)", "(13)",
     "(15)", "(17)", "(4)", "(6)", "(8)", "(10)", "(12)", "(14)", "(16)", "(28)", "(30)", "(32)", "(34)", "(36)", "(38)",
     "(40)", "(42)"
   ];
@@ -88,22 +91,22 @@ function DetallePrenda() {
       }
     };
 
-    
-        const fetchProveedores = async () => {
-            try {
-              const querySnapshot = await getDocs(collection(db, "proveedores"));
-              const docsArray = querySnapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-              }));
-              setProveedores(docsArray);
-            } catch (error) {
-              console.error("Error al cargar los proveedores", error);
-            }
-          };    
 
-      // Obtener proveedores de la base de datos
-      // Similar a lo que ya tienes en tu otro componente
+    const fetchProveedores = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "proveedores"));
+        const docsArray = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setProveedores(docsArray);
+      } catch (error) {
+        console.error("Error al cargar los proveedores", error);
+      }
+    };
+
+    // Obtener proveedores de la base de datos
+    // Similar a lo que ya tienes en tu otro componente
     fetchPrenda();
     fetchProveedores();
   }, [id]);
@@ -164,12 +167,12 @@ function DetallePrenda() {
             return response.json();
           }
         });
-  
+
         await Promise.all(deletePromises); // Espera a que se eliminen todas las imágenes
       };
-  
+
       await deleteImages();
-  
+
       // Eliminar el documento de Firebase
       await deleteDoc(doc(db, "disponible", id));
       alert("Prenda e imágenes eliminadas con éxito");
@@ -198,12 +201,83 @@ function DetallePrenda() {
     setFormData({ ...formData, proveedor: selectedOption });
   };
 
-  const enviarWhatsapp = (id) =>{
+  const enviarWhatsapp = (id) => {
     const message = encodeURIComponent("Conoce nuestras prendas aqui: ")
     const urlId = encodeURIComponent(`https://malim-shop.vercel.app/DetallePrenda/${id}`)
     const url = `https://wa.me/?text=${message}${urlId}`;
     window.open(url, "_blank");
   }
+
+  const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/ds4kmouua/image/upload";
+  // Subir nuevas imágenes
+  const handleFileChange = async (e) => {
+    const files = [...e.target.files];
+    const uploadedFotos = [];
+
+    try {
+      setLoading(true);
+      for (let file of files) {
+        const formDataCloud = new FormData();
+        formDataCloud.append("file", file);
+        formDataCloud.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+        const uploadResponse = await axios.post(CLOUDINARY_URL, formDataCloud);
+        const imageUrl = uploadResponse.data.secure_url;
+        uploadedFotos.push(imageUrl);
+      }
+
+      // Agregar nuevas imágenes al array existente
+      const nuevasFotos = [...formData.fotos, ...uploadedFotos];
+      setFormData({ ...formData, fotos: nuevasFotos });
+
+      // Guardar en Firebase
+      const prendaRef = doc(db, "disponible", id);
+      await updateDoc(prendaRef, { fotos: nuevasFotos });
+
+      alert("Imágenes añadidas con éxito");
+    } catch (error) {
+      alert("Error al subir imágenes.");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteImage = async (fotoUrl) => {
+    const confirm = window.confirm("¿Seguro que quieres eliminar esta imagen?");
+    if (!confirm) return;
+
+    try {
+      setLoading(true);
+      const publicId = obtenerPublicId(fotoUrl);
+
+      // Eliminar de Cloudinary
+      await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          public_id: publicId,
+          upload_preset: CLOUDINARY_UPLOAD_PRESET,
+        }),
+      });
+
+      // Quitar del array de fotos en Firebase
+      const nuevasFotos = formData.fotos.filter((foto) => foto !== fotoUrl);
+      setFormData({ ...formData, fotos: nuevasFotos });
+
+      const prendaRef = doc(db, "disponible", id);
+      await updateDoc(prendaRef, { fotos: nuevasFotos });
+
+      alert("Imagen eliminada con éxito");
+    } catch (error) {
+      console.error("Error al eliminar imagen:", error);
+      alert("Hubo un error al eliminar la imagen");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
 
   // Configuración del carrusel
   const settings = {
@@ -230,57 +304,82 @@ function DetallePrenda() {
       <div>
         <MenuAñadir menuAñadir={menuAñadir} />
       </div>
-        {/* Carrusel de imágenes */}
-        {formData.fotos.length > 1 ? (
-          <Slider {...settings} className="w-64 pt-12 mb-5 mx-auto">
-            {formData.fotos.map((foto, index) => (
-              <div key={index}>
-                <img
-                  src={foto}
-                  alt={`Prenda ${index}`}
-                  className="w-auto h-64 rounded-lg"
-                />
-              </div>
-            ))}
-          </Slider>
-        ) : (
-          <div className="w-64 pt-12 mb-5 mx-auto">
-            <img
-              src={formData.fotos[0]}
-              alt="Prenda"
-              className="w-auto h-64 rounded-lg"
-            />
-          </div>
-        )}
+      {/* Carrusel de imágenes */}
+      {formData.fotos.length > 1 ? (
+        <Slider {...settings} className="w-64 pt-12 mb-5 mx-auto">
+          {formData.fotos.map((foto, index) => (
+            <div key={index} className="relative">
+              <img
+                src={foto}
+                alt={`Prenda ${index}`}
+                className="w-auto h-64 rounded-lg"
+              />
+              <button
+                type="button"
+                onClick={() => handleDeleteImage(foto)}
+                className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded-md text-sm"
+              >
+                X
+              </button>
+            </div>
+          ))}
+
+        </Slider>
+      ) : (
+        <div className="w-64 pt-12 mb-5 mx-auto">
+          <img
+            src={formData.fotos[0]}
+            alt="Prenda"
+            className="w-auto h-64 rounded-lg"
+          />
+        </div>
+      )}
+
+
       {/* Formulario de edición */}
       <main className="pb-20 flex flex-center justify-center">
-      <form onSubmit={handleSubmit} className="lg:border-2 lg:shadow-xl px-5 lg:py-2 pb-20 mt-2 rounded-lg border-pink-200 max-w-lg w-full">
-        <div className="flex flex-col pt-2">
-          <label className="px-2 text-pink-800 font-bold">Prenda:</label>
-          <input
-            type="text"
-            name="prenda"
-            value={formData.prenda}
-            onChange={handleChange}
-            required
-            className="px-2 rounded-md h-8 shadow-sm"
-          />
-        </div>
+        <form onSubmit={handleSubmit} className="lg:border-2 lg:shadow-xl px-5 lg:py-2 pb-20 mt-2 rounded-lg border-pink-200 max-w-lg w-full">
+          <div className="flex flex-col justify-center my-3">
+            <input
+              type="file"
+              id="newFiles"
+              multiple
+              onChange={handleFileChange}
+              className="absolute opacity-0 w-0 h-0"
+            />
+            <label
+              htmlFor="newFiles"
+              className="mt-2 py-2 px-4 bg-pink-700 text-center text-white rounded-md cursor-pointer hover:bg-pink-200"
+            >
+              Añadir imágenes
+            </label>
+          </div>
+          <div className="flex flex-col pt-2">
+            <label className="px-2 text-pink-800 font-bold">Prenda:</label>
+            <input
+              type="text"
+              name="prenda"
+              value={formData.prenda}
+              onChange={handleChange}
+              required
+              className="px-2 rounded-md h-8 shadow-sm"
+            />
+          </div>
 
-        {/* Otros campos (costo, precio, categoría, etc.) */}
-        <div className="flex flex-col pt-2">
-          <label className="px-2 text-pink-800 font-bold">Costo:</label>
-          <input
-            type="number"
-            name="costo"
-            value={formData.costo}
-            onChange={handleChange}
-            required
-            className="px-2 rounded-md h-8 shadow-sm"
-          />
-        </div>
+          {/* Otros campos (costo, precio, categoría, etc.) */}
+          <div className="flex flex-col pt-2">
+            <label className="px-2 text-pink-800 font-bold">Costo:</label>
+            <input
+              type="number"
+              name="costo"
+              value={formData.costo}
+              onChange={handleChange}
+              required
+              className="px-2 rounded-md h-8 shadow-sm"
+            />
+          </div>
 
-        <div className="flex flex-col pt-2">
+          <div className="flex flex-col pt-2">
             <label className="px-2 text-pink-800 font-bold">Precio:</label>
             <input
               type="number"
@@ -333,31 +432,31 @@ function DetallePrenda() {
               className="px-2 rounded-md h-8 shadow-sm"
             />
           </div>
-        
-        <div className="flex flex-col justify-around">
-          <button
-            type="submit"
-            className="mt-2 py-2 px-4 bg-pink-400 text-white rounded-md cursor-pointer hover:bg-pink-200"
-            disabled={loading}
-          >
-            {loading ? "Actualizando..." : "Actualizar Prenda"}
-          </button>
-          <button onClick={()=>manejarClickVender(id)} className="mt-2 py-2 px-4 bg-pink-700 text-white rounded-md cursor-pointer hover:bg-pink-200"
-            type="button">
-            Vender 
-          </button> 
-          <button className="mt-2 py-2 px-4 bg-red-600 text-white rounded-md cursor-pointer hover:bg-pink-200"
-            type="button" onClick={handleDelete}>
-            Eliminar prenda
-          </button>
-          <button className="mt-2 py-2 px-4 bg-green-600 text-white rounded-md cursor-pointer hover:bg-pink-200"
-            type="button" onClick={() => enviarWhatsapp(id)}>
-            Compartir
-          </button>
-        </div>
-      </form>
+
+          <div className="flex flex-col justify-around">
+            <button
+              type="submit"
+              className="mt-2 py-2 px-4 bg-pink-400 text-white rounded-md cursor-pointer hover:bg-pink-200"
+              disabled={loading}
+            >
+              {loading ? "Actualizando..." : "Actualizar Prenda"}
+            </button>
+            <button onClick={() => manejarClickVender(id)} className="mt-2 py-2 px-4 bg-pink-700 text-white rounded-md cursor-pointer hover:bg-pink-200"
+              type="button">
+              Vender
+            </button>
+            <button className="mt-2 py-2 px-4 bg-red-600 text-white rounded-md cursor-pointer hover:bg-pink-200"
+              type="button" onClick={handleDelete}>
+              Eliminar prenda
+            </button>
+            <button className="mt-2 py-2 px-4 bg-green-600 text-white rounded-md cursor-pointer hover:bg-pink-200"
+              type="button" onClick={() => enviarWhatsapp(id)}>
+              Compartir
+            </button>
+          </div>
+        </form>
       </main>
-      <Footer manejadorMenuAñadir={manejadorMenuAñadir}/>
+      <Footer manejadorMenuAñadir={manejadorMenuAñadir} />
     </div>
   );
 }
