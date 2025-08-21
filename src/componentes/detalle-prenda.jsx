@@ -143,45 +143,50 @@ function DetallePrenda() {
 
   //funcion para eliminar la prenda
   const handleDelete = async () => {
-    const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar esta prenda?");
-    if (!confirmDelete) return;
-    try {
-      // Eliminar imágenes de Cloudinary
-      const deleteImages = async () => {
-        const deletePromises = formData.fotos.map(async (fotoUrl) => {
-          const publicId = obtenerPublicId(fotoUrl); // Extrae el public_id de la URL
-          if (publicId) {
-            const response = await fetch(
-              `https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  public_id: publicId,
-                  upload_preset: CLOUDINARY_UPLOAD_PRESET,
-                }),
-              }
-            );
-            return response.json();
-          }
+  const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar esta prenda?");
+  if (!confirmDelete) return;
+
+  try {
+    setLoading(true);
+
+    // Eliminar imágenes según dónde estén guardadas
+    const deletePromises = formData.fotos.map(async (fotoUrl) => {
+      if (fotoUrl.includes("res.cloudinary.com")) {
+        // ---- CLOUDINARY ----
+        const publicId = obtenerPublicId(fotoUrl);
+        await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            public_id: publicId,
+            upload_preset: CLOUDINARY_UPLOAD_PRESET,
+          }),
         });
+      } else {
+        // ---- CLOUDFLARE R2 ----
+        await fetch(
+          `https://malim-backend.vercel.app/api/deleteImage?url=${encodeURIComponent(fotoUrl)}`,
+          { method: "DELETE" }
+        );
+      }
+    });
 
-        await Promise.all(deletePromises); // Espera a que se eliminen todas las imágenes
-      };
+    await Promise.all(deletePromises); // Espera a que se eliminen todas las imágenes
 
-      await deleteImages();
+    // Eliminar el documento de Firebase
+    await deleteDoc(doc(db, "disponible", id));
+    alert("Prenda e imágenes eliminadas con éxito");
 
-      // Eliminar el documento de Firebase
-      await deleteDoc(doc(db, "disponible", id));
-      alert("Prenda e imágenes eliminadas con éxito");
-      navigate("/Disponible"); // Redirige al usuario a la página principal o lista
-    } catch (error) {
-      console.error("Error al eliminar la prenda o las imágenes:", error);
-      alert("Hubo un error al eliminar la prenda o las imágenes");
-    }
-  };
+    navigate("/Disponible"); // Redirige al usuario a la lista de prendas
+  } catch (error) {
+    console.error("Error al eliminar la prenda o las imágenes:", error);
+    alert("Hubo un error al eliminar la prenda o las imágenes");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -244,14 +249,15 @@ function DetallePrenda() {
   };
 
   const handleDeleteImage = async (fotoUrl) => {
-    const confirm = window.confirm("¿Seguro que quieres eliminar esta imagen?");
-    if (!confirm) return;
+  const confirm = window.confirm("¿Seguro que quieres eliminar esta imagen?");
+  if (!confirm) return;
 
-    try {
-      setLoading(true);
-      const publicId = obtenerPublicId(fotoUrl);
+  try {
+    setLoading(true);
 
+    if (fotoUrl.includes("res.cloudinary.com")) {
       // Eliminar de Cloudinary
+      const publicId = obtenerPublicId(fotoUrl);
       await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -260,22 +266,31 @@ function DetallePrenda() {
           upload_preset: CLOUDINARY_UPLOAD_PRESET,
         }),
       });
-
-      // Quitar del array de fotos en Firebase
-      const nuevasFotos = formData.fotos.filter((foto) => foto !== fotoUrl);
-      setFormData({ ...formData, fotos: nuevasFotos });
-
-      const prendaRef = doc(db, "disponible", id);
-      await updateDoc(prendaRef, { fotos: nuevasFotos });
-
-      alert("Imagen eliminada con éxito");
-    } catch (error) {
-      console.error("Error al eliminar imagen:", error);
-      alert("Hubo un error al eliminar la imagen");
-    } finally {
-      setLoading(false);
+    } else {
+      // Eliminar desde tu backend (Cloudflare R2)
+      await fetch(
+        `https://malim-backend.vercel.app/api/deleteImage?url=${encodeURIComponent(fotoUrl)}`,
+        { method: "DELETE" }
+      );
     }
-  };
+
+    // Quitar del array de fotos en Firebase
+    const nuevasFotos = formData.fotos.filter((foto) => foto !== fotoUrl);
+    setFormData({ ...formData, fotos: nuevasFotos });
+
+    const prendaRef = doc(db, "disponible", id);
+    await updateDoc(prendaRef, { fotos: nuevasFotos });
+
+    alert("Imagen eliminada con éxito");
+  } catch (error) {
+    console.error("Error al eliminar imagen:", error);
+    alert("Hubo un error al eliminar la imagen");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
 
 
