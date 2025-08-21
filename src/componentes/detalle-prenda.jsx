@@ -142,45 +142,101 @@ function DetallePrenda() {
   const CLOUDINARY_UPLOAD_PRESET = "malimapp";
 
   //funcion para eliminar la prenda
-  const handleDelete = async () => {
+  // Función para eliminar la prenda completa
+const handleDelete = async () => {
   const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar esta prenda?");
   if (!confirmDelete) return;
 
   try {
     setLoading(true);
+    console.log("Iniciando eliminación de prenda:", id);
 
-    // Eliminar imágenes según dónde estén guardadas
+    // Eliminar imágenes según su origen
     const deletePromises = formData.fotos.map(async (fotoUrl) => {
-      if (fotoUrl.includes("res.cloudinary.com")) {
-        // ---- CLOUDINARY ----
-        const publicId = obtenerPublicId(fotoUrl);
-        await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            public_id: publicId,
-            upload_preset: CLOUDINARY_UPLOAD_PRESET,
-          }),
-        });
-      } else {
-        // ---- CLOUDFLARE R2 ----
-        await fetch(
-          `https://malim-backend.vercel.app/api/deleteImage?url=${encodeURIComponent(fotoUrl)}`,
-          { method: "DELETE" }
-        );
+      try {
+        if (fotoUrl.includes("res.cloudinary.com")) {
+          // ---- CLOUDINARY ----
+          console.log("Eliminando de Cloudinary:", fotoUrl);
+          
+          // Extraer public_id correctamente
+          const urlParts = fotoUrl.split('/');
+          const uploadIndex = urlParts.indexOf('upload');
+          let publicId = '';
+          
+          if (uploadIndex !== -1 && urlParts.length > uploadIndex + 2) {
+            // Tomar todo después de la versión (v1234567/)
+            const versionPart = urlParts[uploadIndex + 1];
+            if (versionPart.startsWith('v')) {
+              publicId = urlParts.slice(uploadIndex + 2).join('/');
+            } else {
+              publicId = urlParts.slice(uploadIndex + 1).join('/');
+            }
+            // Remover extensión del archivo
+            publicId = publicId.replace(/\.[^/.]+$/, "");
+          }
+
+          if (!publicId) {
+            console.warn("No se pudo extraer public_id de:", fotoUrl);
+            return;
+          }
+
+          const response = await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              public_id: publicId,
+              upload_preset: CLOUDINARY_UPLOAD_PRESET,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Cloudinary error: ${response.status}`);
+          }
+
+          console.log("Imagen de Cloudinary eliminada:", publicId);
+
+        } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
+          // ---- CLOUDFLARE R2 ----
+          console.log("Eliminando de R2:", fotoUrl);
+          
+          const response = await fetch(
+            `https://malim-backend.vercel.app/api/deleteImage?url=${encodeURIComponent(fotoUrl)}`,
+            { 
+              method: "DELETE",
+              headers: {
+                "Accept": "application/json"
+              }
+            }
+          );
+
+          const result = await response.json();
+          
+          if (!response.ok || !result.success) {
+            throw new Error(result.error || `R2 error: ${response.status}`);
+          }
+
+          console.log("Imagen de R2 eliminada:", fotoUrl);
+        }
+      } catch (error) {
+        console.error(`Error eliminando imagen ${fotoUrl}:`, error);
+        // Continuar aunque falle una imagen individual
       }
     });
 
-    await Promise.all(deletePromises); // Espera a que se eliminen todas las imágenes
+    // Esperar a que todas las eliminaciones terminen (aunque algunas fallen)
+    await Promise.allSettled(deletePromises);
 
     // Eliminar el documento de Firebase
     await deleteDoc(doc(db, "disponible", id));
-    alert("Prenda e imágenes eliminadas con éxito");
+    
+    alert("Prenda eliminada con éxito");
+    navigate("/Disponible");
 
-    navigate("/Disponible"); // Redirige al usuario a la lista de prendas
   } catch (error) {
-    console.error("Error al eliminar la prenda o las imágenes:", error);
-    alert("Hubo un error al eliminar la prenda o las imágenes");
+    console.error("Error general al eliminar la prenda:", error);
+    alert("Error al eliminar la prenda: " + error.message);
   } finally {
     setLoading(false);
   }
@@ -248,30 +304,75 @@ function DetallePrenda() {
     }
   };
 
-  const handleDeleteImage = async (fotoUrl) => {
+  // Función para eliminar imagen individual
+const handleDeleteImage = async (fotoUrl) => {
   const confirm = window.confirm("¿Seguro que quieres eliminar esta imagen?");
   if (!confirm) return;
 
   try {
     setLoading(true);
+    console.log("Eliminando imagen individual:", fotoUrl);
 
     if (fotoUrl.includes("res.cloudinary.com")) {
-      // Eliminar de Cloudinary
-      const publicId = obtenerPublicId(fotoUrl);
-      await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
+      // ---- CLOUDINARY ----
+      console.log("Eliminando de Cloudinary:", fotoUrl);
+      
+      // Extraer public_id correctamente
+      const urlParts = fotoUrl.split('/');
+      const uploadIndex = urlParts.indexOf('upload');
+      let publicId = '';
+      
+      if (uploadIndex !== -1 && urlParts.length > uploadIndex + 2) {
+        const versionPart = urlParts[uploadIndex + 1];
+        if (versionPart.startsWith('v')) {
+          publicId = urlParts.slice(uploadIndex + 2).join('/');
+        } else {
+          publicId = urlParts.slice(uploadIndex + 1).join('/');
+        }
+        publicId = publicId.replace(/\.[^/.]+$/, "");
+      }
+
+      if (!publicId) {
+        throw new Error("No se pudo extraer public_id de la URL");
+      }
+
+      const response = await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           public_id: publicId,
           upload_preset: CLOUDINARY_UPLOAD_PRESET,
         }),
       });
-    } else {
-      // Eliminar desde tu backend (Cloudflare R2)
-      await fetch(
+
+      if (!response.ok) {
+        throw new Error(`Error Cloudinary: ${response.status}`);
+      }
+
+    } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
+      // ---- CLOUDFLARE R2 ----
+      console.log("Eliminando de R2:", fotoUrl);
+      
+      const response = await fetch(
         `https://malim-backend.vercel.app/api/deleteImage?url=${encodeURIComponent(fotoUrl)}`,
-        { method: "DELETE" }
+        { 
+          method: "DELETE",
+          headers: {
+            "Accept": "application/json"
+          }
+        }
       );
+
+      const result = await response.json();
+      
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || `Error R2: ${response.status}`);
+      }
+
+    } else {
+      throw new Error("URL de imagen no reconocida (no es Cloudinary ni R2)");
     }
 
     // Quitar del array de fotos en Firebase
@@ -282,9 +383,10 @@ function DetallePrenda() {
     await updateDoc(prendaRef, { fotos: nuevasFotos });
 
     alert("Imagen eliminada con éxito");
+
   } catch (error) {
-    console.error("Error al eliminar imagen:", error);
-    alert("Hubo un error al eliminar la imagen");
+    console.error("Error al eliminar imagen individual:", error);
+    alert("Error al eliminar la imagen: " + error.message);
   } finally {
     setLoading(false);
   }
