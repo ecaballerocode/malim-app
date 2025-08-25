@@ -25,10 +25,8 @@ function FormAñadirDisponible() {
   const [menuAñadir, setmenuAñadir] = useState(false);
   const [proveedores, setProveedores] = useState([]);
   const [fecha, setFecha] = useState("");
-  const [imagesReady, setImagesReady] = useState(true);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
 
-
-  // ✅ URL DEL BACKEND
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app";
 
   const manejadorMenu = () => {
@@ -39,7 +37,6 @@ function FormAñadirDisponible() {
     setmenuAñadir(!menuAñadir);
   };
 
-  // ✅ FUNCIÓN FALTANTE AGREGADA
   const handleDate = (e) => {
     const newDate = e.target.value;
     setFecha(newDate);
@@ -47,17 +44,17 @@ function FormAñadirDisponible() {
 
   const categorias = [
     "Abrigos", "Accesorios", "Patria", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
-    "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas", "Maxi vestidos", "Maxi cobijas",
+    "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas", "Maxi vestidos", "Maxi cobijas", 
     "Ensambles", "Pantalones", "Pants", "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
-    "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos", "Camisas", "Gorros", "Calzado",
-    "Chalecos", "Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres", "Overoles", "Otros", "Sin Categoria",
+    "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos", "Camisas", "Gorros", "Calzado", 
+    "Chalecos", "Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres", "Overoles", "Otros", "Sin Categoria", 
     "Niños uisex", "Gabardinas", "Vestidos"
   ];
 
   const tallas = [
-    "(Inf 2-4)", "(Inf 6-8)", "(Inf 10-12)", "(juv 14-16)", "(XS 3-5)", "(28-30)", "(30-32)", "(30-34)",
-    "(32-36)", "(32-34)", "(34-36)", "(36-38)", "(38-40)", "(40-42)", "Unitalla", "(5)", "(7)", "(9)",
-    "(11)", "(13)", "(15)", "(17)", "(4)", "(6)", "(8)", "(10)", "(12)", "(14)", "(16)", "(28)", "(30)",
+    "(Inf 2-4)", "(Inf 6-8)", "(Inf 10-12)", "(juv 14-16)", "(XS 3-5)", "(28-30)", "(30-32)", "(30-34)", 
+    "(32-36)", "(32-34)", "(34-36)", "(36-38)", "(38-40)", "(40-42)", "Unitalla", "(5)", "(7)", "(9)", 
+    "(11)", "(13)", "(15)", "(17)", "(4)", "(6)", "(8)", "(10)", "(12)", "(14)", "(16)", "(28)", "(30)", 
     "(32)", "(34)", "(36)", "(38)", "(40)", "(42)"
   ];
 
@@ -76,7 +73,6 @@ function FormAñadirDisponible() {
     label: prov.proveedor,
   }));
 
-  // ✅ GUARDAR ARCHIVOS SIN SUBIRLOS INMEDIATAMENTE
   const handleFileChange = (e) => {
     const files = [...e.target.files];
     if (!files.length) return;
@@ -86,7 +82,6 @@ function FormAñadirDisponible() {
     setPreviewUrls(prev => [...prev, ...newPreviewUrls]);
   };
 
-  // ✅ LIMPIAR PREVIEW URLs
   useEffect(() => {
     return () => {
       previewUrls.forEach(url => URL.revokeObjectURL(url));
@@ -127,55 +122,115 @@ function FormAñadirDisponible() {
     setFormData({ ...formData, proveedor: selectedOption });
   };
 
-  // NUEVO: función para subir imágenes una por una
-  const uploadImages = async (files) => {
-    setImagesReady(false); // bloquea botón mientras sube
+  // ✅ FUNCIÓN PARA SUBIR UN LOTE DE IMÁGENES (MÁXIMO 2 POR LOTE)
+  const uploadImageBatch = async (filesBatch, batchNumber) => {
     try {
-      const urls = await Promise.all(
-        files.map(async (file, index) => {
-          const fileName = `malim-${Date.now()}-${index}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-          const fd = new FormData();
-          fd.append("file", file, fileName);
+      const uploadFormData = new FormData();
+      
+      filesBatch.forEach((file, index) => {
+        const fileName = `malim-${Date.now()}-${batchNumber}-${index}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        uploadFormData.append("files", file, fileName);
+      });
 
-          const res = await fetch(BACKEND_URL + "/api/upload", {
-            method: "POST",
-            body: fd,
-          });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-          if (!res.ok) {
-            throw new Error(`Error subiendo ${file.name}: ${res.status}`);
-          }
+      const response = await fetch(BACKEND_URL + "/api/upload", {
+        method: "POST",
+        body: uploadFormData,
+        mode: 'cors',
+        signal: controller.signal
+      });
 
-          const data = await res.json();
-          return data.url; // tu backend debe devolver { url: "https://..." }
-        })
-      );
-      return urls;
-    } finally {
-      setImagesReady(true); // vuelve a habilitar botón
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Error en lote ${batchNumber + 1}: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data && data.urls && Array.isArray(data.urls)) {
+        return data.urls;
+      } else {
+        throw new Error(`Formato de respuesta inválido en lote ${batchNumber + 1}`);
+      }
+
+    } catch (error) {
+      console.error(`Error en lote ${batchNumber + 1}:`, error);
+      throw error;
     }
   };
 
+  // ✅ FUNCIÓN PRINCIPAL QUE MANEJA LOTES DE MÁXIMO 2 IMÁGENES
+  const uploadAllImages = async (files) => {
+    if (files.length === 0) return [];
+    
+    // Dividir en lotes de máximo 2 imágenes
+    const batchSize = 2;
+    const batches = [];
+    
+    for (let i = 0; i < files.length; i += batchSize) {
+      batches.push(files.slice(i, i + batchSize));
+    }
 
-  // ✅ SUBIR IMÁGENES SOLO AL DAR CLICK EN "AGREGAR PRENDA"
-  // ✅ SUBIR IMÁGENES SOLO AL DAR CLICK EN "AGREGAR PRENDA"
+    const allUrls = [];
+    setUploadProgress({ current: 0, total: batches.length });
+
+    for (let i = 0; i < batches.length; i++) {
+      try {
+        const batchUrls = await uploadImageBatch(batches[i], i);
+        allUrls.push(...batchUrls);
+        
+        setUploadProgress({ current: i + 1, total: batches.length });
+        
+        // Pequeña pausa entre lotes para no saturar el backend
+        if (i < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
+        
+      } catch (error) {
+        throw new Error(`Fallo en lote ${i + 1}/${batches.length}: ${error.message}`);
+      }
+    }
+
+    return allUrls;
+  };
+
+  // ✅ HANDLE SUBMIT CON MANEJO ROBUSTO DE ERRORES
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (fotos.length > 12) {
+      alert("⚠️ Máximo 12 imágenes permitidas por producto");
+      return;
+    }
+
+    const totalSize = fotos.reduce((total, file) => total + file.size, 0);
+    if (totalSize > 20 * 1024 * 1024) {
+      alert("⚠️ El tamaño total de las imágenes no debe exceder 20MB");
+      return;
+    }
+
     setLoading(true);
+    setUploadProgress({ current: 0, total: 0 });
 
     try {
       let uploadedUrls = [];
 
-      // 1. SUBIR IMÁGENES SI HAY
       if (fotos.length > 0) {
         try {
-          uploadedUrls = await uploadImages(fotos);
+          uploadedUrls = await uploadAllImages(fotos);
+          console.log(`${uploadedUrls.length} imágenes subidas exitosamente`);
         } catch (uploadError) {
           alert("❌ Error subiendo imágenes: " + uploadError.message);
+          setLoading(false);
+          setUploadProgress({ current: 0, total: 0 });
+          return;
         }
       }
 
-      // 2. PREPARAR DATOS PARA FIRESTORE
       const dataToSubmit = {
         prenda: formData.prenda,
         detalles: formData.detalles,
@@ -189,10 +244,8 @@ function FormAñadirDisponible() {
         fechaCreacion: new Date(),
       };
 
-      // 3. GUARDAR EN FIRESTORE
       await addDoc(collection(db, "disponible"), dataToSubmit);
 
-      // 4. LIMPIAR FORMULARIO
       setFormData({
         prenda: "",
         detalles: "",
@@ -205,17 +258,18 @@ function FormAñadirDisponible() {
       setFotos([]);
       setPreviewUrls([]);
       setFecha("");
+      setUploadProgress({ current: 0, total: 0 });
 
-      alert("🎉 ¡Prenda agregada!");
+      alert(`🎉 ¡Prenda agregada con ${uploadedUrls.length} imágenes!`);
+
     } catch (error) {
-      alert("💥 Error crítico: " + error.message);
+      console.error("Error crítico:", error);
+      alert("💥 Error al guardar: " + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-
-  // ✅ ELIMINAR IMAGEN DE LA PREVISUALIZACIÓN
   const removeImage = (index) => {
     const newFotos = [...fotos];
     const newPreviewUrls = [...previewUrls];
@@ -225,8 +279,6 @@ function FormAñadirDisponible() {
     setFotos(newFotos);
     setPreviewUrls(newPreviewUrls);
   };
-
-
 
   return (
     <div className="bg-pink-100 min-h-screen">
@@ -244,6 +296,21 @@ function FormAñadirDisponible() {
       <div>
         <MenuAñadir menuAñadir={menuAñadir} />
       </div>
+
+      {/* INDICADOR DE PROGRESO DE SUBIDA */}
+      {uploadProgress.total > 0 && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-white p-4 rounded-lg shadow-lg z-50">
+          <p className="text-sm font-medium mb-2">
+            Subiendo imágenes... {uploadProgress.current}/{uploadProgress.total} lotes
+          </p>
+          <div className="w-64 bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-pink-500 h-2 rounded-full transition-all"
+              style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+            ></div>
+          </div>
+        </div>
+      )}
 
       {/* PREVISUALIZACIÓN DE IMÁGENES */}
       <div className="flex flex-wrap gap-2 mt-2 p-4">
@@ -301,7 +368,7 @@ function FormAñadirDisponible() {
               type="date"
               id="datePicker"
               value={fecha}
-              onChange={handleDate} /* ✅ CORREGIDO */
+              onChange={handleDate}
               required
             />
           </div>
@@ -390,16 +457,14 @@ function FormAñadirDisponible() {
             />
           </div>
 
-
           <div className="flex justify-center pt-2">
             <button
               type="submit"
               className="mt-2 py-2 px-4 bg-pink-400 text-white rounded-md cursor-pointer hover:bg-pink-200 disabled:opacity-50"
-              disabled={loading || !imagesReady}
+              disabled={loading}
             >
-              {loading ? "⏳ Subiendo..." : "✅ Agregar Prenda"}
+              {loading ? `⏳ Subiendo... (${uploadProgress.current}/${uploadProgress.total})` : "✅ Agregar Prenda"}
             </button>
-
           </div>
         </form>
       </div>

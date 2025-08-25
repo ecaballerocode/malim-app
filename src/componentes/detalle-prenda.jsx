@@ -12,7 +12,7 @@ import Footer from "./footer";
 import MenuAñadir from "./menu-añadir";
 
 function DetallePrenda() {
-  const { id } = useParams(); // Obtiene el ID de la prenda desde la URL
+  const { id } = useParams();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     prenda: "",
@@ -28,11 +28,9 @@ function DetallePrenda() {
   const [proveedores, setProveedores] = useState([]);
   const [menuAbierto, setmenuAbierto] = useState(false);
   const [menuAñadir, setmenuAñadir] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
 
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app";
-
-
-
 
   const manejadorMenu = () => {
     setmenuAbierto(!menuAbierto);
@@ -42,26 +40,24 @@ function DetallePrenda() {
     setmenuAñadir(!menuAñadir);
   };
 
-  // Categorías y tallas (puedes ajustar estas listas según tu proyecto)
   const categorias = [
     "Abrigos", "Accesorios", "Patria", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
-    "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas",
-    "Maxi vestidos", "Maxi cobijas", "Ensambles", "Pantalones", "Pants",
-    "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
-    "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos",
-    "Camisas", "Gorros", "Calzado", "Chalecos", "Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres",
-    "Overoles", "Otros", "Sin Categoria", "Niños uisex", "Gabardinas", "Vestidos"
+    "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas", "Maxi vestidos", "Maxi cobijas", 
+    "Ensambles", "Pantalones", "Pants", "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
+    "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos", "Camisas", "Gorros", "Calzado", 
+    "Chalecos", "Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres", "Overoles", "Otros", "Sin Categoria", 
+    "Niños uisex", "Gabardinas", "Vestidos"
   ];
 
   const tallas = [
-    "(Inf 2-4)", "(Inf 6-8)", "(Inf 10-12)", "(juv 14-16)", "(XS 3-5)", "(28-30)", "(30-32)", "(30-34)", "(32-36)", "(32-34)",
-    "(34-36)", "(36-38)", "(38-40)", "(40-42)", "Unitalla", "(5)", "(7)", "(9)", "(11)", "(13)",
-    "(15)", "(17)", "(4)", "(6)", "(8)", "(10)", "(12)", "(14)", "(16)", "(28)", "(30)", "(32)", "(34)", "(36)", "(38)",
-    "(40)", "(42)"
+    "(Inf 2-4)", "(Inf 6-8)", "(Inf 10-12)", "(juv 14-16)", "(XS 3-5)", "(28-30)", "(30-32)", "(30-34)", 
+    "(32-36)", "(32-34)", "(34-36)", "(36-38)", "(38-40)", "(40-42)", "Unitalla", "(5)", "(7)", "(9)", 
+    "(11)", "(13)", "(15)", "(17)", "(4)", "(6)", "(8)", "(10)", "(12)", "(14)", "(16)", "(28)", "(30)", 
+    "(32)", "(34)", "(36)", "(38)", "(40)", "(42)"
   ];
 
   const manejarClickVender = (id) => {
-    navigate(`/FormVender/${id}`);  // Redirige a la página de venta
+    navigate(`/FormVender/${id}`);
   };
 
   const proveedoresOptions = proveedores.map((prov) => ({
@@ -93,7 +89,6 @@ function DetallePrenda() {
       }
     };
 
-
     const fetchProveedores = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, "proveedores"));
@@ -107,41 +102,85 @@ function DetallePrenda() {
       }
     };
 
-    // Obtener proveedores de la base de datos
-    // Similar a lo que ya tienes en tu otro componente
     fetchPrenda();
     fetchProveedores();
   }, [id]);
 
-const uploadImages = async (files) => {
-  setLoading(true);
-  try {
-    const urls = await Promise.all(
-      files.map(async (file, index) => {
-        const fileName = `malim-${Date.now()}-${index}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-        const fd = new FormData();
-        fd.append("file", file, fileName);
+  // ✅ FUNCIÓN PARA SUBIR UN LOTE DE IMÁGENES (MÁXIMO 2 POR LOTE)
+  const uploadImageBatch = async (filesBatch, batchNumber) => {
+    try {
+      const uploadFormData = new FormData();
+      
+      filesBatch.forEach((file, index) => {
+        const fileName = `malim-${Date.now()}-${batchNumber}-${index}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+        uploadFormData.append("files", file, fileName);
+      });
 
-        const res = await fetch(BACKEND_URL + "/api/upload", {
-          method: "POST",
-          body: fd,
-        });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-        if (!res.ok) {
-          throw new Error(`Error subiendo ${file.name}: ${res.status}`);
+      const response = await fetch(BACKEND_URL + "/api/upload", {
+        method: "POST",
+        body: uploadFormData,
+        mode: 'cors',
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Error en lote ${batchNumber + 1}: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data && data.urls && Array.isArray(data.urls)) {
+        return data.urls;
+      } else {
+        throw new Error(`Formato de respuesta inválido en lote ${batchNumber + 1}`);
+      }
+
+    } catch (error) {
+      console.error(`Error en lote ${batchNumber + 1}:`, error);
+      throw error;
+    }
+  };
+
+  // ✅ FUNCIÓN PRINCIPAL QUE MANEJA LOTES DE MÁXIMO 2 IMÁGENES
+  const uploadAllImages = async (files) => {
+    if (files.length === 0) return [];
+    
+    // Dividir en lotes de máximo 2 imágenes
+    const batchSize = 2;
+    const batches = [];
+    
+    for (let i = 0; i < files.length; i += batchSize) {
+      batches.push(files.slice(i, i + batchSize));
+    }
+
+    const allUrls = [];
+    setUploadProgress({ current: 0, total: batches.length });
+
+    for (let i = 0; i < batches.length; i++) {
+      try {
+        const batchUrls = await uploadImageBatch(batches[i], i);
+        allUrls.push(...batchUrls);
+        
+        setUploadProgress({ current: i + 1, total: batches.length });
+        
+        // Pequeña pausa entre lotes para no saturar el backend
+        if (i < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 800));
         }
+        
+      } catch (error) {
+        throw new Error(`Fallo en lote ${i + 1}/${batches.length}: ${error.message}`);
+      }
+    }
 
-        const data = await res.json();
-        return data.url; // tu backend debe devolver { url: "https://..." }
-      })
-    );
-    return urls;
-  } finally {
-    setLoading(false);
-  }
-};
-
-
+    return allUrls;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -164,117 +203,98 @@ const uploadImages = async (files) => {
   };
 
   const obtenerPublicId = (url) => {
-    // Extrae el public_id de la URL
     const parts = url.split("/");
-    const publicIdWithExtension = parts[parts.length - 1]; // Obtiene el último segmento (incluye extensión)
-    const publicId = publicIdWithExtension.split(".")[0]; // Elimina la extensión (.jpg, .png, etc.)
-    return `${parts[parts.length - 2]}/${publicId}`; // Incluye el prefijo de la carpeta (si lo hay)
+    const publicIdWithExtension = parts[parts.length - 1];
+    const publicId = publicIdWithExtension.split(".")[0];
+    return `${parts[parts.length - 2]}/${publicId}`;
   };
 
   const CLOUDINARY_UPLOAD_PRESET = "malimapp";
 
-  //funcion para eliminar la prenda
-  // Función para eliminar la prenda completa
-const handleDelete = async () => {
-  const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar esta prenda?");
-  if (!confirmDelete) return;
+  const handleDelete = async () => {
+    const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar esta prenda?");
+    if (!confirmDelete) return;
 
-  try {
-    setLoading(true);
-    console.log("Iniciando eliminación de prenda:", id);
+    try {
+      setLoading(true);
+      console.log("Iniciando eliminación de prenda:", id);
 
-    // Eliminar imágenes según su origen
-    const deletePromises = formData.fotos.map(async (fotoUrl) => {
-      try {
-        if (fotoUrl.includes("res.cloudinary.com")) {
-          // ---- CLOUDINARY ----
-          console.log("Eliminando de Cloudinary:", fotoUrl);
-          
-          // Extraer public_id correctamente
-          const urlParts = fotoUrl.split('/');
-          const uploadIndex = urlParts.indexOf('upload');
-          let publicId = '';
-          
-          if (uploadIndex !== -1 && urlParts.length > uploadIndex + 2) {
-            // Tomar todo después de la versión (v1234567/)
-            const versionPart = urlParts[uploadIndex + 1];
-            if (versionPart.startsWith('v')) {
-              publicId = urlParts.slice(uploadIndex + 2).join('/');
-            } else {
-              publicId = urlParts.slice(uploadIndex + 1).join('/');
-            }
-            // Remover extensión del archivo
-            publicId = publicId.replace(/\.[^/.]+$/, "");
-          }
-
-          if (!publicId) {
-            console.warn("No se pudo extraer public_id de:", fotoUrl);
-            return;
-          }
-
-          const response = await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              public_id: publicId,
-              upload_preset: CLOUDINARY_UPLOAD_PRESET,
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error(`Cloudinary error: ${response.status}`);
-          }
-
-          console.log("Imagen de Cloudinary eliminada:", publicId);
-
-        } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
-          // ---- CLOUDFLARE R2 ----
-          console.log("Eliminando de R2:", fotoUrl);
-          
-          const response = await fetch(
-            `https://malim-backend.vercel.app/api/deleteImage?url=${encodeURIComponent(fotoUrl)}`,
-            { 
-              method: "DELETE",
-              headers: {
-                "Accept": "application/json"
+      const deletePromises = formData.fotos.map(async (fotoUrl) => {
+        try {
+          if (fotoUrl.includes("res.cloudinary.com")) {
+            console.log("Eliminando de Cloudinary:", fotoUrl);
+            const urlParts = fotoUrl.split('/');
+            const uploadIndex = urlParts.indexOf('upload');
+            let publicId = '';
+            
+            if (uploadIndex !== -1 && urlParts.length > uploadIndex + 2) {
+              const versionPart = urlParts[uploadIndex + 1];
+              if (versionPart.startsWith('v')) {
+                publicId = urlParts.slice(uploadIndex + 2).join('/');
+              } else {
+                publicId = urlParts.slice(uploadIndex + 1).join('/');
               }
+              publicId = publicId.replace(/\.[^/.]+$/, "");
             }
-          );
 
-          const result = await response.json();
-          
-          if (!response.ok || !result.success) {
-            throw new Error(result.error || `R2 error: ${response.status}`);
+            if (!publicId) {
+              console.warn("No se pudo extraer public_id de:", fotoUrl);
+              return;
+            }
+
+            const response = await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                public_id: publicId,
+                upload_preset: CLOUDINARY_UPLOAD_PRESET,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error(`Cloudinary error: ${response.status}`);
+            }
+
+            console.log("Imagen de Cloudinary eliminada:", publicId);
+
+          } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
+            console.log("Eliminando de R2:", fotoUrl);
+            const response = await fetch(
+              `https://malim-backend.vercel.app/api/deleteImage?url=${encodeURIComponent(fotoUrl)}`,
+              { 
+                method: "DELETE",
+                headers: {
+                  "Accept": "application/json"
+                }
+              }
+            );
+
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+              throw new Error(result.error || `R2 error: ${response.status}`);
+            }
+
+            console.log("Imagen de R2 eliminada:", fotoUrl);
           }
-
-          console.log("Imagen de R2 eliminada:", fotoUrl);
+        } catch (error) {
+          console.error(`Error eliminando imagen ${fotoUrl}:`, error);
         }
-      } catch (error) {
-        console.error(`Error eliminando imagen ${fotoUrl}:`, error);
-        // Continuar aunque falle una imagen individual
-      }
-    });
+      });
 
-    // Esperar a que todas las eliminaciones terminen (aunque algunas fallen)
-    await Promise.allSettled(deletePromises);
+      await Promise.allSettled(deletePromises);
+      await deleteDoc(doc(db, "disponible", id));
+      alert("Prenda eliminada con éxito");
+      navigate("/Disponible");
 
-    // Eliminar el documento de Firebase
-    await deleteDoc(doc(db, "disponible", id));
-    
-    alert("Prenda eliminada con éxito");
-    navigate("/Disponible");
-
-  } catch (error) {
-    console.error("Error general al eliminar la prenda:", error);
-    alert("Error al eliminar la prenda: " + error.message);
-  } finally {
-    setLoading(false);
-  }
-};
-
-
+    } catch (error) {
+      console.error("Error general al eliminar la prenda:", error);
+      alert("Error al eliminar la prenda: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -295,134 +315,133 @@ const handleDelete = async () => {
   };
 
   const enviarWhatsapp = (id) => {
-    const message = encodeURIComponent("Conoce nuestras prendas aqui: ")
-    const urlId = encodeURIComponent(`https://malim-shop.vercel.app/DetallePrenda/${id}`)
+    const message = encodeURIComponent("Conoce nuestras prendas aqui: ");
+    const urlId = encodeURIComponent(`https://malim-shop.vercel.app/DetallePrenda/${id}`);
     const url = `https://wa.me/?text=${message}${urlId}`;
     window.open(url, "_blank");
-  }
+  };
 
-  // Subir nuevas imágenes
+  // ✅ SUBIR NUEVAS IMÁGENES CON SISTEMA DE LOTES
   const handleFileChange = async (e) => {
-  const files = [...e.target.files];
-  if (!files.length) return;
+    const files = [...e.target.files];
+    if (!files.length) return;
 
-  try {
-    setLoading(true);
-
-    // Subir a Cloudflare R2
-    const uploadedUrls = await uploadImages(files);
-
-    // Agregar nuevas imágenes al array existente
-    const nuevasFotos = [...formData.fotos, ...uploadedUrls];
-    setFormData({ ...formData, fotos: nuevasFotos });
-
-    // Guardar en Firestore
-    const prendaRef = doc(db, "disponible", id);
-    await updateDoc(prendaRef, { fotos: nuevasFotos });
-
-    alert("Imágenes añadidas con éxito ✅");
-  } catch (error) {
-    alert("Error al subir imágenes ❌");
-    console.error(error);
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-  // Función para eliminar imagen individual
-const handleDeleteImage = async (fotoUrl) => {
-  const confirm = window.confirm("¿Seguro que quieres eliminar esta imagen?");
-  if (!confirm) return;
-
-  try {
-    setLoading(true);
-    console.log("Eliminando imagen individual:", fotoUrl);
-
-    if (fotoUrl.includes("res.cloudinary.com")) {
-      // ---- CLOUDINARY ----
-      console.log("Eliminando de Cloudinary:", fotoUrl);
-      
-      // Extraer public_id correctamente
-      const urlParts = fotoUrl.split('/');
-      const uploadIndex = urlParts.indexOf('upload');
-      let publicId = '';
-      
-      if (uploadIndex !== -1 && urlParts.length > uploadIndex + 2) {
-        const versionPart = urlParts[uploadIndex + 1];
-        if (versionPart.startsWith('v')) {
-          publicId = urlParts.slice(uploadIndex + 2).join('/');
-        } else {
-          publicId = urlParts.slice(uploadIndex + 1).join('/');
-        }
-        publicId = publicId.replace(/\.[^/.]+$/, "");
-      }
-
-      if (!publicId) {
-        throw new Error("No se pudo extraer public_id de la URL");
-      }
-
-      const response = await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          public_id: publicId,
-          upload_preset: CLOUDINARY_UPLOAD_PRESET,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error Cloudinary: ${response.status}`);
-      }
-
-    } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
-      // ---- CLOUDFLARE R2 ----
-      console.log("Eliminando de R2:", fotoUrl);
-      
-      const response = await fetch(
-        `https://malim-backend.vercel.app/api/deleteImage?url=${encodeURIComponent(fotoUrl)}`,
-        { 
-          method: "DELETE",
-          headers: {
-            "Accept": "application/json"
-          }
-        }
-      );
-
-      const result = await response.json();
-      
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || `Error R2: ${response.status}`);
-      }
-
-    } else {
-      throw new Error("URL de imagen no reconocida (no es Cloudinary ni R2)");
+    // Validaciones
+    if (files.length > 10) {
+      alert("⚠️ Máximo 10 imágenes por vez");
+      return;
     }
 
-    // Quitar del array de fotos en Firebase
-    const nuevasFotos = formData.fotos.filter((foto) => foto !== fotoUrl);
-    setFormData({ ...formData, fotos: nuevasFotos });
+    const totalSize = files.reduce((total, file) => total + file.size, 0);
+    if (totalSize > 15 * 1024 * 1024) {
+      alert("⚠️ El tamaño total de las imágenes no debe exceder 15MB");
+      return;
+    }
 
-    const prendaRef = doc(db, "disponible", id);
-    await updateDoc(prendaRef, { fotos: nuevasFotos });
+    try {
+      setLoading(true);
 
-    alert("Imagen eliminada con éxito");
+      // Subir imágenes usando el sistema de lotes
+      const uploadedUrls = await uploadAllImages(files);
 
-  } catch (error) {
-    console.error("Error al eliminar imagen individual:", error);
-    alert("Error al eliminar la imagen: " + error.message);
-  } finally {
-    setLoading(false);
-  }
-};
+      // Agregar nuevas imágenes al array existente
+      const nuevasFotos = [...formData.fotos, ...uploadedUrls];
+      setFormData({ ...formData, fotos: nuevasFotos });
 
+      // Guardar en Firestore
+      const prendaRef = doc(db, "disponible", id);
+      await updateDoc(prendaRef, { fotos: nuevasFotos });
 
+      alert(`✅ ${uploadedUrls.length} imágenes añadidas con éxito`);
 
+    } catch (error) {
+      alert("❌ Error al subir imágenes: " + error.message);
+      console.error(error);
+    } finally {
+      setLoading(false);
+      setUploadProgress({ current: 0, total: 0 });
+    }
+  };
 
+  const handleDeleteImage = async (fotoUrl) => {
+    const confirm = window.confirm("¿Seguro que quieres eliminar esta imagen?");
+    if (!confirm) return;
 
-  // Configuración del carrusel
+    try {
+      setLoading(true);
+      console.log("Eliminando imagen individual:", fotoUrl);
+
+      if (fotoUrl.includes("res.cloudinary.com")) {
+        const urlParts = fotoUrl.split('/');
+        const uploadIndex = urlParts.indexOf('upload');
+        let publicId = '';
+        
+        if (uploadIndex !== -1 && urlParts.length > uploadIndex + 2) {
+          const versionPart = urlParts[uploadIndex + 1];
+          if (versionPart.startsWith('v')) {
+            publicId = urlParts.slice(uploadIndex + 2).join('/');
+          } else {
+            publicId = urlParts.slice(uploadIndex + 1).join('/');
+          }
+          publicId = publicId.replace(/\.[^/.]+$/, "");
+        }
+
+        if (!publicId) {
+          throw new Error("No se pudo extraer public_id de la URL");
+        }
+
+        const response = await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            public_id: publicId,
+            upload_preset: CLOUDINARY_UPLOAD_PRESET,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error Cloudinary: ${response.status}`);
+        }
+
+      } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
+        const response = await fetch(
+          `https://malim-backend.vercel.app/api/deleteImage?url=${encodeURIComponent(fotoUrl)}`,
+          { 
+            method: "DELETE",
+            headers: {
+              "Accept": "application/json"
+            }
+          }
+        );
+
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || `Error R2: ${response.status}`);
+        }
+
+      } else {
+        throw new Error("URL de imagen no reconocida");
+      }
+
+      // Quitar del array de fotos en Firebase
+      const nuevasFotos = formData.fotos.filter((foto) => foto !== fotoUrl);
+      setFormData({ ...formData, fotos: nuevasFotos });
+
+      const prendaRef = doc(db, "disponible", id);
+      await updateDoc(prendaRef, { fotos: nuevasFotos });
+
+      alert("Imagen eliminada con éxito");
+
+    } catch (error) {
+      console.error("Error al eliminar imagen individual:", error);
+      alert("Error al eliminar la imagen: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const settings = {
     dots: true,
     infinite: true,
@@ -431,7 +450,6 @@ const handleDeleteImage = async (fotoUrl) => {
     slidesToScroll: 1,
   };
 
-  // Opciones para selects
   const categoriaOptions = categorias.map((cat) => ({ value: cat, label: cat }));
   const tallaOptions = tallas.map((talla) => ({ value: talla, label: talla }));
 
@@ -439,14 +457,34 @@ const handleDeleteImage = async (fotoUrl) => {
     <div className="bg-pink-100 min-h-screen">
       <header className="relative">
         <Header menuAbierto={menuAbierto} manejadorMenu={manejadorMenu} />
-        <h1 className="fixed inset-x-0 transform pt-2 text-center pointer-events-none text-xl font-bold text-white z-50">Detalles prenda disponible</h1>
+        <h1 className="fixed inset-x-0 transform pt-2 text-center pointer-events-none text-xl font-bold text-white z-50">
+          Detalles prenda disponible
+        </h1>
       </header>
+
       <div>
         <MenuLateral menuAbierto={menuAbierto} />
       </div>
+
       <div>
         <MenuAñadir menuAñadir={menuAñadir} />
       </div>
+
+      {/* INDICADOR DE PROGRESO DE SUBIDA */}
+      {uploadProgress.total > 0 && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-white p-4 rounded-lg shadow-lg z-50">
+          <p className="text-sm font-medium mb-2">
+            Subiendo imágenes... {uploadProgress.current}/{uploadProgress.total} lotes
+          </p>
+          <div className="w-64 bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-pink-500 h-2 rounded-full transition-all"
+              style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+            ></div>
+          </div>
+        </div>
+      )}
+
       {/* Carrusel de imágenes */}
       {formData.fotos.length > 1 ? (
         <Slider {...settings} className="w-64 pt-12 mb-5 mx-auto">
@@ -466,9 +504,8 @@ const handleDeleteImage = async (fotoUrl) => {
               </button>
             </div>
           ))}
-
         </Slider>
-      ) : (
+      ) : formData.fotos.length === 1 ? (
         <div className="w-64 pt-12 mb-5 mx-auto">
           <img
             src={formData.fotos[0]}
@@ -476,12 +513,12 @@ const handleDeleteImage = async (fotoUrl) => {
             className="w-auto h-64 rounded-lg"
           />
         </div>
-      )}
-
+      ) : null}
 
       {/* Formulario de edición */}
       <main className="pb-20 flex flex-center justify-center">
         <form onSubmit={handleSubmit} className="lg:border-2 lg:shadow-xl px-5 lg:py-2 pb-20 mt-2 rounded-lg border-pink-200 max-w-lg w-full">
+          
           <div className="flex flex-col justify-center my-3">
             <input
               type="file"
@@ -494,9 +531,10 @@ const handleDeleteImage = async (fotoUrl) => {
               htmlFor="newFiles"
               className="mt-2 py-2 px-4 bg-pink-700 text-center text-white rounded-md cursor-pointer hover:bg-pink-200"
             >
-              Añadir imágenes
+              {loading ? "Subiendo..." : "Añadir imágenes"}
             </label>
           </div>
+
           <div className="flex flex-col pt-2">
             <label className="px-2 text-pink-800 font-bold">Prenda:</label>
             <input
@@ -509,7 +547,6 @@ const handleDeleteImage = async (fotoUrl) => {
             />
           </div>
 
-          {/* Otros campos (costo, precio, categoría, etc.) */}
           <div className="flex flex-col pt-2">
             <label className="px-2 text-pink-800 font-bold">Costo:</label>
             <input
@@ -534,6 +571,7 @@ const handleDeleteImage = async (fotoUrl) => {
               className="px-2 rounded-md h-8 shadow-sm"
             />
           </div>
+
           <div className="flex flex-col pt-2">
             <label className="px-2 text-pink-800 font-bold">Talla:</label>
             <Select
@@ -544,6 +582,7 @@ const handleDeleteImage = async (fotoUrl) => {
               placeholder="Seleccionar tallas"
             />
           </div>
+
           <div className="flex flex-col pt-2">
             <label className="px-2 text-pink-800 font-bold">Categoría:</label>
             <Select
@@ -554,6 +593,7 @@ const handleDeleteImage = async (fotoUrl) => {
               placeholder="Seleccionar categoría"
             />
           </div>
+
           <div className="flex flex-col pt-2">
             <label className="px-2 text-pink-800 font-bold">Proveedor:</label>
             <Select
@@ -564,6 +604,7 @@ const handleDeleteImage = async (fotoUrl) => {
               placeholder="Seleccionar proveedor"
             />
           </div>
+
           <div className="flex flex-col pt-2">
             <label className="px-2 text-pink-800 font-bold">Detalles:</label>
             <input
@@ -599,6 +640,7 @@ const handleDeleteImage = async (fotoUrl) => {
           </div>
         </form>
       </main>
+
       <Footer manejadorMenuAñadir={manejadorMenuAñadir} />
     </div>
   );
