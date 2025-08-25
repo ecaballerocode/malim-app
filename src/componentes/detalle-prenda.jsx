@@ -10,7 +10,6 @@ import Header from "./header";
 import MenuLateral from "./menu-lateral";
 import Footer from "./footer";
 import MenuAñadir from "./menu-añadir";
-import axios from "axios"; // 👈 necesitas axios aquí también
 
 function DetallePrenda() {
   const { id } = useParams(); // Obtiene el ID de la prenda desde la URL
@@ -29,6 +28,9 @@ function DetallePrenda() {
   const [proveedores, setProveedores] = useState([]);
   const [menuAbierto, setmenuAbierto] = useState(false);
   const [menuAñadir, setmenuAñadir] = useState(false);
+
+  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app";
+
 
 
 
@@ -110,6 +112,36 @@ function DetallePrenda() {
     fetchPrenda();
     fetchProveedores();
   }, [id]);
+
+const uploadImages = async (files) => {
+  setLoading(true);
+  try {
+    const urls = await Promise.all(
+      files.map(async (file, index) => {
+        const fileName = `malim-${Date.now()}-${index}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+        const fd = new FormData();
+        fd.append("file", file, fileName);
+
+        const res = await fetch(BACKEND_URL + "/api/upload", {
+          method: "POST",
+          body: fd,
+        });
+
+        if (!res.ok) {
+          throw new Error(`Error subiendo ${file.name}: ${res.status}`);
+        }
+
+        const data = await res.json();
+        return data.url; // tu backend debe devolver { url: "https://..." }
+      })
+    );
+    return urls;
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -269,40 +301,34 @@ const handleDelete = async () => {
     window.open(url, "_blank");
   }
 
-  const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/ds4kmouua/image/upload";
   // Subir nuevas imágenes
   const handleFileChange = async (e) => {
-    const files = [...e.target.files];
-    const uploadedFotos = [];
+  const files = [...e.target.files];
+  if (!files.length) return;
 
-    try {
-      setLoading(true);
-      for (let file of files) {
-        const formDataCloud = new FormData();
-        formDataCloud.append("file", file);
-        formDataCloud.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  try {
+    setLoading(true);
 
-        const uploadResponse = await axios.post(CLOUDINARY_URL, formDataCloud);
-        const imageUrl = uploadResponse.data.secure_url;
-        uploadedFotos.push(imageUrl);
-      }
+    // Subir a Cloudflare R2
+    const uploadedUrls = await uploadImages(files);
 
-      // Agregar nuevas imágenes al array existente
-      const nuevasFotos = [...formData.fotos, ...uploadedFotos];
-      setFormData({ ...formData, fotos: nuevasFotos });
+    // Agregar nuevas imágenes al array existente
+    const nuevasFotos = [...formData.fotos, ...uploadedUrls];
+    setFormData({ ...formData, fotos: nuevasFotos });
 
-      // Guardar en Firebase
-      const prendaRef = doc(db, "disponible", id);
-      await updateDoc(prendaRef, { fotos: nuevasFotos });
+    // Guardar en Firestore
+    const prendaRef = doc(db, "disponible", id);
+    await updateDoc(prendaRef, { fotos: nuevasFotos });
 
-      alert("Imágenes añadidas con éxito");
-    } catch (error) {
-      alert("Error al subir imágenes.");
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    alert("Imágenes añadidas con éxito ✅");
+  } catch (error) {
+    alert("Error al subir imágenes ❌");
+    console.error(error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   // Función para eliminar imagen individual
 const handleDeleteImage = async (fotoUrl) => {

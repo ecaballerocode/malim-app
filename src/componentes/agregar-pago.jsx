@@ -148,6 +148,19 @@ function AgregarPago() {
     setMonto(Number(e.target.value));
   };
 
+  const waitForImages = (node) => {
+    const imgs = Array.from(node.querySelectorAll("img"));
+    return Promise.all(
+      imgs.map(img => new Promise(resolve => {
+        // Garantiza CORS en tiempo de ejecución (por si vino sin él)
+        img.crossOrigin = "anonymous";
+        if (img.complete && img.naturalWidth !== 0) return resolve();
+        img.addEventListener("load", () => resolve(), { once: true });
+        img.addEventListener("error", () => resolve(), { once: true }); // no bloquea
+      }))
+    );
+  };
+
   const exportarNotaComoImagen = async () => {
     try {
       const divNota = document.getElementById("Nota");
@@ -156,10 +169,14 @@ function AgregarPago() {
         return;
       }
 
+      await waitForImages(divNota);
+
+
       // Generar la imagen como JPG
       const dataUrl = await htmlToImage.toJpeg(divNota, {
         quality: 1, // Máxima calidad
-        backgroundColor: "#f5ebdd", // Asegura el color de fondo
+        backgroundColor: "#f5ebdd",
+        cacheBust: true,// Asegura el color de fondo
       }); // Ajusta la calidad (0.95 es alta calidad)
 
       // Crear un enlace temporal para descargar la imagen
@@ -195,7 +212,13 @@ function AgregarPago() {
         >
           <div className="flex flex-row">
             <div className="w-1/3 flex flex-col items-center">
-              <img src={Data.fotos} alt="Prenda" className="rounded-lg max-w-full h-auto" />
+              <img
+                src={Data.fotos}
+                alt="Prenda"
+                crossOrigin="anonymous"
+                className="rounded-lg max-w-full h-auto"
+              />
+
               <img src={logo} alt="Logo Malim" className="w-8 h-8 mt-2" />
             </div>
             <div className="w-2/3 px-4">

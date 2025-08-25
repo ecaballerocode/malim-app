@@ -25,6 +25,8 @@ function FormAñadirDisponible() {
   const [menuAñadir, setmenuAñadir] = useState(false);
   const [proveedores, setProveedores] = useState([]);
   const [fecha, setFecha] = useState("");
+  const [imagesReady, setImagesReady] = useState(true);
+
 
   // ✅ URL DEL BACKEND
   const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app";
@@ -45,17 +47,17 @@ function FormAñadirDisponible() {
 
   const categorias = [
     "Abrigos", "Accesorios", "Patria", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
-    "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas", "Maxi vestidos", "Maxi cobijas", 
+    "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas", "Maxi vestidos", "Maxi cobijas",
     "Ensambles", "Pantalones", "Pants", "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
-    "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos", "Camisas", "Gorros", "Calzado", 
-    "Chalecos", "Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres", "Overoles", "Otros", "Sin Categoria", 
+    "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos", "Camisas", "Gorros", "Calzado",
+    "Chalecos", "Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres", "Overoles", "Otros", "Sin Categoria",
     "Niños uisex", "Gabardinas", "Vestidos"
   ];
 
   const tallas = [
-    "(Inf 2-4)", "(Inf 6-8)", "(Inf 10-12)", "(juv 14-16)", "(XS 3-5)", "(28-30)", "(30-32)", "(30-34)", 
-    "(32-36)", "(32-34)", "(34-36)", "(36-38)", "(38-40)", "(40-42)", "Unitalla", "(5)", "(7)", "(9)", 
-    "(11)", "(13)", "(15)", "(17)", "(4)", "(6)", "(8)", "(10)", "(12)", "(14)", "(16)", "(28)", "(30)", 
+    "(Inf 2-4)", "(Inf 6-8)", "(Inf 10-12)", "(juv 14-16)", "(XS 3-5)", "(28-30)", "(30-32)", "(30-34)",
+    "(32-36)", "(32-34)", "(34-36)", "(36-38)", "(38-40)", "(40-42)", "Unitalla", "(5)", "(7)", "(9)",
+    "(11)", "(13)", "(15)", "(17)", "(4)", "(6)", "(8)", "(10)", "(12)", "(14)", "(16)", "(28)", "(30)",
     "(32)", "(34)", "(36)", "(38)", "(40)", "(42)"
   ];
 
@@ -125,114 +127,93 @@ function FormAñadirDisponible() {
     setFormData({ ...formData, proveedor: selectedOption });
   };
 
+  // NUEVO: función para subir imágenes una por una
+  const uploadImages = async (files) => {
+    setImagesReady(false); // bloquea botón mientras sube
+    try {
+      const urls = await Promise.all(
+        files.map(async (file, index) => {
+          const fileName = `malim-${Date.now()}-${index}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+          const fd = new FormData();
+          fd.append("file", file, fileName);
+
+          const res = await fetch(BACKEND_URL + "/api/upload", {
+            method: "POST",
+            body: fd,
+          });
+
+          if (!res.ok) {
+            throw new Error(`Error subiendo ${file.name}: ${res.status}`);
+          }
+
+          const data = await res.json();
+          return data.url; // tu backend debe devolver { url: "https://..." }
+        })
+      );
+      return urls;
+    } finally {
+      setImagesReady(true); // vuelve a habilitar botón
+    }
+  };
+
+
+  // ✅ SUBIR IMÁGENES SOLO AL DAR CLICK EN "AGREGAR PRENDA"
   // ✅ SUBIR IMÁGENES SOLO AL DAR CLICK EN "AGREGAR PRENDA"
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
+    e.preventDefault();
+    setLoading(true);
 
-  try {
-    let uploadedUrls = [];
+    try {
+      let uploadedUrls = [];
 
-    // ✅ 1. SUBIR IMÁGENES CON DEBUG POR ALERTS
-    if (fotos.length > 0) {
-      try {
-        
-        const uploadFormData = new FormData();
-        fotos.forEach((file, index) => {
-          const fileName = `malim-${Date.now()}-${index}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-          uploadFormData.append("files", file, fileName);
-        });
-
-        // ✅ Agregar timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          controller.abort();
-          alert("⏰ Timeout: La subida está tardando demasiado");
-        }, 30000);
-
-        const response = await fetch(BACKEND_URL + "/api/upload", {
-          method: "POST",
-          body: uploadFormData,
-          mode: 'cors',
-          signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          alert("❌ Error del servidor: " + response.status + "\n" + errorText);
-          throw new Error(`Error ${response.status}: ${errorText}`);
-        }
-
-        // ✅ VER RESPUESTA COMO TEXTO
-        const responseText = await response.text();
-       
-
-        // ✅ INTENTAR PARSEAR JSON
-        let data;
+      // 1. SUBIR IMÁGENES SI HAY
+      if (fotos.length > 0) {
         try {
-          data = JSON.parse(responseText);
-        } catch (parseError) {
-          alert("❌ La respuesta no es JSON válido");
-          throw new Error("Respuesta no es JSON: " + responseText.substring(0, 100));
+          uploadedUrls = await uploadImages(fotos);
+        } catch (uploadError) {
+          alert("❌ Error subiendo imágenes: " + uploadError.message);
         }
-
-        // ✅ VERIFICAR SI TIENE URLs
-        if (data && data.urls && Array.isArray(data.urls)) {
-          uploadedUrls = data.urls;
-          alert("🎉 " + uploadedUrls.length + " URLs obtenidas:\n" + uploadedUrls.join("\n"));
-        } else {
-          alert("⚠️ El servidor no devolvió URLs. Respuesta completa:\n" + JSON.stringify(data));
-        }
-
-      } catch (uploadError) {
-        alert("❌ Error subiendo imágenes: " + uploadError.message);
-        // Continuar sin imágenes
       }
-    } else {
-      alert("ℹ️ No hay imágenes para subir");
+
+      // 2. PREPARAR DATOS PARA FIRESTORE
+      const dataToSubmit = {
+        prenda: formData.prenda,
+        detalles: formData.detalles,
+        costo: Number(formData.costo),
+        precio: Number(formData.precio),
+        talla: formData.talla,
+        categoria: formData.categoria ? formData.categoria.value : "",
+        proveedor: formData.proveedor ? formData.proveedor.label : "",
+        fotos: uploadedUrls,
+        fecha: fecha || new Date().toISOString().split("T")[0],
+        fechaCreacion: new Date(),
+      };
+
+      // 3. GUARDAR EN FIRESTORE
+      await addDoc(collection(db, "disponible"), dataToSubmit);
+
+      // 4. LIMPIAR FORMULARIO
+      setFormData({
+        prenda: "",
+        detalles: "",
+        costo: "",
+        precio: "",
+        talla: [],
+        categoria: null,
+        proveedor: null,
+      });
+      setFotos([]);
+      setPreviewUrls([]);
+      setFecha("");
+
+      alert("🎉 ¡Prenda agregada!");
+    } catch (error) {
+      alert("💥 Error crítico: " + error.message);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // ✅ 2. PREPARAR DATOS PARA FIRESTORE
-    const dataToSubmit = {
-      prenda: formData.prenda,
-      detalles: formData.detalles,
-      costo: Number(formData.costo),
-      precio: Number(formData.precio),
-      talla: formData.talla,
-      categoria: formData.categoria ? formData.categoria.value : "",
-      proveedor: formData.proveedor ? formData.proveedor.label : "",
-      fotos: uploadedUrls,
-      fecha: fecha || new Date().toISOString().split('T')[0],
-      fechaCreacion: new Date()
-    };
-
-    alert("📦 Datos a guardar:\n" + JSON.stringify({
-      prenda: dataToSubmit.prenda,
-      costo: dataToSubmit.costo,
-      fotos_count: dataToSubmit.fotos.length
-    }, null, 2));
-
-    // ✅ 3. GUARDAR EN FIRESTORE
-    await addDoc(collection(db, "disponible"), dataToSubmit);
-  
-
-    // ✅ 4. RESETEAR FORMULARIO
-    setFormData({ prenda: "", detalles: "", costo: "", precio: "", talla: [], categoria: null, proveedor: null });
-    setFotos([]);
-    setPreviewUrls([]);
-    setFecha("");
-
-    alert("🎉 ¡Prenda agregada!");
-
-  } catch (error) {
-    alert("💥 Error crítico: " + error.message);
-  } finally {
-    setLoading(false);
-  }
-};
 
   // ✅ ELIMINAR IMAGEN DE LA PREVISUALIZACIÓN
   const removeImage = (index) => {
@@ -408,16 +389,17 @@ function FormAñadirDisponible() {
               className="px-2 rounded-md h-8 shadow-sm"
             />
           </div>
-         
+
 
           <div className="flex justify-center pt-2">
             <button
               type="submit"
               className="mt-2 py-2 px-4 bg-pink-400 text-white rounded-md cursor-pointer hover:bg-pink-200 disabled:opacity-50"
-              disabled={loading}
+              disabled={loading || !imagesReady}
             >
               {loading ? "⏳ Subiendo..." : "✅ Agregar Prenda"}
             </button>
+
           </div>
         </form>
       </div>
