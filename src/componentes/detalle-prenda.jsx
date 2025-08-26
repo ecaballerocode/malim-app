@@ -42,17 +42,17 @@ function DetallePrenda() {
 
   const categorias = [
     "Abrigos", "Accesorios", "Patria", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
-    "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas", "Maxi vestidos", "Maxi cobijas", 
+    "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas", "Maxi vestidos", "Maxi cobijas",
     "Ensambles", "Pantalones", "Pants", "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
-    "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos", "Camisas", "Gorros", "Calzado", 
-    "Chalecos", "Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres", "Overoles", "Otros", "Sin Categoria", 
+    "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos", "Camisas", "Gorros", "Calzado",
+    "Chalecos", "Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres", "Overoles", "Otros", "Sin Categoria",
     "Niños uisex", "Gabardinas", "Vestidos"
   ];
 
   const tallas = [
-    "(Inf 2-4)", "(Inf 6-8)", "(Inf 10-12)", "(juv 14-16)", "(XS 3-5)", "(28-30)", "(30-32)", "(30-34)", 
-    "(32-36)", "(32-34)", "(34-36)", "(36-38)", "(38-40)", "(40-42)", "Unitalla", "(5)", "(7)", "(9)", 
-    "(11)", "(13)", "(15)", "(17)", "(4)", "(6)", "(8)", "(10)", "(12)", "(14)", "(16)", "(28)", "(30)", 
+    "(Inf 2-4)", "(Inf 6-8)", "(Inf 10-12)", "(juv 14-16)", "(XS 3-5)", "(28-30)", "(30-32)", "(30-34)",
+    "(32-36)", "(32-34)", "(34-36)", "(36-38)", "(38-40)", "(40-42)", "Unitalla", "(5)", "(7)", "(9)",
+    "(11)", "(13)", "(15)", "(17)", "(4)", "(6)", "(8)", "(10)", "(12)", "(14)", "(16)", "(28)", "(30)",
     "(32)", "(34)", "(36)", "(38)", "(40)", "(42)"
   ];
 
@@ -200,10 +200,13 @@ function DetallePrenda() {
   const CLOUDINARY_UPLOAD_PRESET = "malimapp";
 
   // Función auxiliar para eliminar imágenes del storage
+  // Función auxiliar para eliminar imágenes del storage
   const deleteImageFromStorage = async (fotoUrl) => {
     try {
       if (fotoUrl.includes("res.cloudinary.com")) {
         console.log("Eliminando de Cloudinary:", fotoUrl);
+
+        // Extraer el public_id de la URL de Cloudinary
         const urlParts = fotoUrl.split('/');
         const uploadIndex = urlParts.indexOf('upload');
         let publicId = '';
@@ -223,9 +226,10 @@ function DetallePrenda() {
           return false;
         }
 
+        // Eliminar de Cloudinary
         const response = await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
           method: "POST",
-          headers: { 
+          headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -243,13 +247,14 @@ function DetallePrenda() {
 
       } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
         console.log("Eliminando de R2:", fotoUrl);
-        
+
+        // Codificar la URL correctamente
         const encodedUrl = encodeURIComponent(fotoUrl);
         const backendUrl = `${BACKEND_URL}/api/deleteImage?url=${encodedUrl}`;
-        
+
         console.log("Llamando a:", backendUrl);
-        
-        const response = await fetch(backendUrl, { 
+
+        const response = await fetch(backendUrl, {
           method: "DELETE",
           headers: {
             "Accept": "application/json",
@@ -258,23 +263,35 @@ function DetallePrenda() {
         });
 
         const result = await response.json();
-        
+
         if (!response.ok) {
+          // Si el error es que la imagen no existe, continuamos igual
+          if (response.status === 404) {
+            console.warn("Imagen no encontrada en R2, continuando:", fotoUrl);
+            return true;
+          }
           throw new Error(result.error || `Error R2: ${response.status}`);
         }
-        
-        if (!result.success) {
+
+        if (!result.success && !result.message.includes("no se requiere eliminación")) {
           throw new Error(result.error || "Error al eliminar imagen de R2");
         }
-        
-        console.log("Imagen de R2 eliminada:", fotoUrl, result.message);
+
+        console.log("Imagen de R2 eliminada o no requería eliminación:", fotoUrl, result.message);
         return true;
 
       } else {
-        console.warn("URL de imagen no reconocida:", fotoUrl);
-        return false;
+        console.warn("URL de imagen no reconocida, no se elimina:", fotoUrl);
+        return true; // Consideramos éxito para URLs no reconocidas
       }
     } catch (error) {
+      // Si es un error de "no encontrado", continuamos
+      if (error.message.includes("no fue encontrada") ||
+        error.message.includes("not found")) {
+        console.warn("Imagen no encontrada, continuando:", fotoUrl);
+        return true;
+      }
+
       console.error(`Error eliminando imagen ${fotoUrl}:`, error);
       throw error;
     }
@@ -288,24 +305,21 @@ function DetallePrenda() {
       setLoading(true);
       console.log("Iniciando eliminación de prenda:", id);
 
-      // Eliminar imágenes del storage
-      const deleteResults = await Promise.allSettled(
-        formData.fotos.map(fotoUrl => deleteImageFromStorage(fotoUrl))
+      // Eliminar imágenes del storage con mejor manejo de errores
+      const deletePromises = formData.fotos.map(fotoUrl =>
+        deleteImageFromStorage(fotoUrl)
+          .catch(error => {
+            // Log del error pero continuamos con la eliminación
+            console.warn(`Error eliminando imagen ${fotoUrl}:`, error.message);
+            return true; // Consideramos éxito para continuar
+          })
       );
 
-      // Verificar si hubo errores graves
-      const criticalErrors = deleteResults.filter(
-        result => result.status === 'rejected' && 
-        !result.reason.message.includes('No se pudo extraer public_id')
-      );
-
-      if (criticalErrors.length > 0) {
-        console.warn("Algunas imágenes no se pudieron eliminar:", criticalErrors);
-      }
+      await Promise.all(deletePromises);
 
       // Eliminar documento de Firestore
       await deleteDoc(doc(db, "disponible", id));
-      
+
       alert("Prenda eliminada con éxito");
       navigate("/Disponible");
 
@@ -323,10 +337,10 @@ function DetallePrenda() {
 
     try {
       setLoading(true);
-      
+
       // Eliminar del storage
       await deleteImageFromStorage(fotoUrl);
-      
+
       // Quitar del array de fotos en Firebase
       const nuevasFotos = formData.fotos.filter((foto) => foto !== fotoUrl);
       setFormData({ ...formData, fotos: nuevasFotos });
@@ -446,7 +460,7 @@ function DetallePrenda() {
             Subiendo imágenes... {uploadProgress.current}/{uploadProgress.total} lotes
           </p>
           <div className="w-64 bg-gray-200 rounded-full h-2">
-            <div 
+            <div
               className="bg-pink-500 h-2 rounded-full transition-all"
               style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
             ></div>
