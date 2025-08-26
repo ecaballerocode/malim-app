@@ -10,20 +10,19 @@ import MenuAñadir from "./menu-añadir";
 import logo from "../logo-negro.png";
 import * as htmlToImage from "html-to-image";
 
-
 function AgregarPago() {
-
-
   const [menuAbierto, setmenuAbierto] = useState(false);
   const [menuAñadir, setmenuAñadir] = useState(false);
   const [fecha, setFecha] = useState("");
   const [monto, setMonto] = useState();
   const [estatus, setEstatus] = useState("")
   const [precioOriginal, setPrecioOriginal] = useState(0);
+  const [imageError, setImageError] = useState(false);
+  const [imagenPrevia, setImagenPrevia] = useState(null);
+  const [mostrarPrevia, setMostrarPrevia] = useState(false);
+  const [generandoImagen, setGenerandoImagen] = useState(false);
 
-
-  const { id } = useParams(); // Obtiene el ID de la prenda desde la URL
-
+  const { id } = useParams();
 
   const [Data, setData] = useState({
     prenda: "",
@@ -46,6 +45,17 @@ function AgregarPago() {
     pagos: []
   });
 
+  const normalizeImageUrl = (url) => {
+    if (!url) return '';
+    if (Array.isArray(url)) {
+      url = url.length > 0 ? url[0] : '';
+    }
+    if (typeof url !== 'string') return '';
+    if (url.startsWith('//')) {
+      url = 'https:' + url;
+    }
+    return url;
+  };
 
   const manejadorMenu = () => {
     setmenuAbierto(!menuAbierto);
@@ -56,8 +66,7 @@ function AgregarPago() {
   };
 
   const manejadorFecha = (e) => {
-    const nuevaFecha = e.target.value;
-    setFecha(nuevaFecha);
+    setFecha(e.target.value);
   };
 
   useEffect(() => {
@@ -68,37 +77,34 @@ function AgregarPago() {
 
         if (prendaDoc.exists()) {
           const data = prendaDoc.data();
-          setPrecioOriginal(data.precio); // <<=== Guarda el precio original
+          setPrecioOriginal(data.precio);
           setData({
-            prenda: data.prenda,
-            detalles: data.detalles,
-            costo: data.costo,
-            precio: data.precio,
+            prenda: data.prenda || "",
+            detalles: data.detalles || "",
+            costo: data.costo || "",
+            precio: data.precio || "",
             precioOriginal: data.precioOriginal,
-            tallas: data.tallas,
-            talla: data.talla,
-            categoria: data.categoria,
-            proveedor: data.proveedor,
-            fotos: data.fotos,
-            cliente: data.cliente,
-            fecha: data.fecha,
-            color: data.color,
-            pago: data.pago,
-            lugar: data.lugar,
-            entrega: data.entrega,
-            comprado: data.comprado,
-            entregado: data.entregado,
-            pagos: data.pagos || [], // Garantiza que `pagos` sea un arreglo vacío si no existe
-
+            tallas: data.tallas || "",
+            talla: data.talla || "",
+            categoria: data.categoria || "",
+            proveedor: data.proveedor || "",
+            fotos: data.fotos || [],
+            cliente: data.cliente || "",
+            fecha: data.fecha || "",
+            color: data.color || "",
+            pago: data.pago || 0,
+            lugar: data.lugar || "",
+            entrega: data.entrega || "",
+            comprado: data.comprado || false,
+            entregado: data.entregado || false,
+            pagos: data.pagos || [],
           });
-          const manejarEstatus = () => {
-            if (data.entregado) {
-              setEstatus("Pedido entregado")
-            } else {
-              setEstatus("Entrega pendiente")
-            }
+
+          if (data.entregado) {
+            setEstatus("Pedido entregado");
+          } else {
+            setEstatus("Entrega pendiente");
           }
-          manejarEstatus();
         }
       } catch (error) {
         console.error("Error al obtener la prenda:", error);
@@ -106,7 +112,6 @@ function AgregarPago() {
     };
     fetchPrenda();
   }, [id]);
-
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -117,11 +122,9 @@ function AgregarPago() {
       pago: Number(Data.pago) + Number(monto),
     };
 
-    // Elimina precioOriginal si no existe
     if (!dataToSubmit.precioOriginal) {
       delete dataToSubmit.precioOriginal;
     }
-
 
     try {
       await updateDoc(doc(db, "pedidos", id), dataToSubmit);
@@ -133,16 +136,11 @@ function AgregarPago() {
         pagos: [...prevState.pagos, { fecha, monto }],
         pago: Number(prevState.pago) + Number(monto),
       }));
-
     } catch (error) {
       alert("Hubo un error al agregar el pedido.");
       console.error("Error al agregar el pedido:", error);
     }
   };
-
-  useEffect(() => {
-
-  }, [estatus])
 
   const handleMonto = (e) => {
     setMonto(Number(e.target.value));
@@ -152,146 +150,271 @@ function AgregarPago() {
     const imgs = Array.from(node.querySelectorAll("img"));
     return Promise.all(
       imgs.map(img => new Promise(resolve => {
-        // Garantiza CORS en tiempo de ejecución (por si vino sin él)
         img.crossOrigin = "anonymous";
         if (img.complete && img.naturalWidth !== 0) return resolve();
+        
         img.addEventListener("load", () => resolve(), { once: true });
-        img.addEventListener("error", () => resolve(), { once: true }); // no bloquea
+        img.addEventListener("error", () => resolve(), { once: true });
+        setTimeout(() => resolve(), 3000);
       }))
     );
   };
 
-  const exportarNotaComoImagen = async () => {
+  const generarImagenNota = async (descargar = false) => {
+    setGenerandoImagen(true);
     try {
       const divNota = document.getElementById("Nota");
       if (!divNota) {
         alert("No se encontró la nota.");
-        return;
+        return null;
       }
 
-      await waitForImages(divNota);
+      // Contenedor temporal con tamaño optimizado para móviles
+      const tempContainer = document.createElement('div');
+      tempContainer.style.position = 'fixed';
+      tempContainer.style.top = '0';
+      tempContainer.style.left = '0';
+      tempContainer.style.width = '100%';
+      tempContainer.style.height = '100%';
+      tempContainer.style.backgroundColor = '#f5ebdd';
+      tempContainer.style.display = 'flex';
+      tempContainer.style.justifyContent = 'center';
+      tempContainer.style.alignItems = 'center';
+      tempContainer.style.zIndex = '9999';
+      tempContainer.style.padding = '16px';
+      
+      const clone = divNota.cloneNode(true);
+      clone.style.width = '100%';
+      clone.style.maxWidth = '380px'; // Perfecto para móviles
+      clone.style.margin = '0 auto';
+      clone.style.boxSizing = 'border-box';
+      
+      tempContainer.appendChild(clone);
+      document.body.appendChild(tempContainer);
 
+      await waitForImages(clone);
+      await new Promise(resolve => requestAnimationFrame(resolve));
 
-      // Generar la imagen como JPG
-      const dataUrl = await htmlToImage.toJpeg(divNota, {
-        quality: 1, // Máxima calidad
+      const dataUrl = await htmlToImage.toJpeg(clone, {
+        quality: 0.95,
         backgroundColor: "#f5ebdd",
-        cacheBust: true,// Asegura el color de fondo
-      }); // Ajusta la calidad (0.95 es alta calidad)
+        cacheBust: true,
+        width: clone.offsetWidth,
+        height: clone.offsetHeight,
+        style: {
+          width: '100%',
+          maxWidth: '380px',
+          margin: '0 auto'
+        }
+      });
 
-      // Crear un enlace temporal para descargar la imagen
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download = "nota.jpg"; // Cambia la extensión a JPG
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      document.body.removeChild(tempContainer);
+
+      if (descargar) {
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = `nota-${Data.cliente || 'pedido'}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      return dataUrl;
+
     } catch (error) {
-      console.error("Error al exportar la nota como imagen:", error);
-      alert("Hubo un error al generar la imagen.");
+      console.error("Error al generar la imagen:", error);
+      alert("Error al generar la imagen");
+      return null;
+    } finally {
+      setGenerandoImagen(false);
     }
   };
 
+  const exportarNotaComoImagen = async () => {
+    await generarImagenNota(true);
+  };
+
+  const previsualizarNota = async () => {
+    const dataUrl = await generarImagenNota(false);
+    if (dataUrl) {
+      setImagenPrevia(dataUrl);
+      setMostrarPrevia(true);
+    }
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
+  const ModalPrevisualizacion = () => {
+    if (!mostrarPrevia) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white p-4 rounded-lg max-w-md w-full mx-auto">
+          <h2 className="text-lg font-bold mb-4 text-pink-800">Previsualización</h2>
+          {imagenPrevia ? (
+            <img src={imagenPrevia} alt="Nota" className="w-full h-auto mb-4 rounded border" />
+          ) : (
+            <div className="w-full h-40 bg-gray-100 flex items-center justify-center mb-4 rounded">
+              <span className="text-gray-500">Cargando...</span>
+            </div>
+          )}
+          <div className="flex flex-col sm:flex-row gap-2 justify-between">
+            <button onClick={() => setMostrarPrevia(false)} className="bg-gray-300 px-4 py-2 rounded">
+              Cerrar
+            </button>
+            <button onClick={() => window.open(imagenPrevia, '_blank')} className="bg-pink-300 px-4 py-2 rounded">
+              Abrir
+            </button>
+            <button onClick={() => {
+              const link = document.createElement("a");
+              link.href = imagenPrevia;
+              link.download = `nota-${Data.cliente || 'pedido'}.jpg`;
+              link.click();
+            }} className="bg-pink-400 text-white px-4 py-2 rounded">
+              Descargar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="bg-pink-100 min-h-screen">
       <header className="relative">
         <Header menuAbierto={menuAbierto} manejadorMenu={manejadorMenu} />
-        <h1 className="fixed inset-x-0 transform pt-2 text-center pointer-events-none text-xl font-bold text-white z-50">Agregar pago a {Data.cliente}</h1>
+        <h1 className="fixed inset-x-0 transform pt-2 text-center pointer-events-none text-xl font-bold text-white z-50">
+          Agregar pago a {Data.cliente}
+        </h1>
       </header>
-      <div>
-        <MenuLateral menuAbierto={menuAbierto} />
-      </div>
-      <div>
-        <MenuAñadir menuAñadir={menuAñadir} />
-      </div>
-      <main className="pb-16 pt-10 w-full flex lg:justify-center lg:flex-row flex-col">
+      
+      <MenuLateral menuAbierto={menuAbierto} />
+      <MenuAñadir menuAñadir={menuAñadir} />
+
+      <main className="pb-16 pt-10 w-full flex flex-col items-center">
+        {/* Nota optimizada para móviles */}
         <div
           id="Nota"
-          className="lg:w-2/3 border-2 p-4 rounded-lg shadow-xl w-full border-pink-200 bg-pink-100"
+          className="border-2 p-3 rounded-lg shadow-xl w-full max-w-sm mx-auto border-pink-200 bg-pink-100"
         >
           <div className="flex flex-row">
             <div className="w-1/3 flex flex-col items-center">
-              <img
-                src={Data.fotos}
-                alt="Prenda"
-                crossOrigin="anonymous"
-                className="rounded-lg max-w-full h-auto"
-              />
-
-              <img src={logo} alt="Logo Malim" className="w-8 h-8 mt-2" />
+              {!imageError && Data.fotos ? (
+                <img
+                  src={normalizeImageUrl(Data.fotos)}
+                  alt="Prenda"
+                  crossOrigin="anonymous"
+                  className="rounded-lg w-full max-h-28 object-contain"
+                  onError={handleImageError}
+                />
+              ) : (
+                <div className="w-full h-28 bg-pink-200 flex items-center justify-center rounded-lg">
+                  <span className="text-pink-600 text-xs">Sin imagen</span>
+                </div>
+              )}
+              <img src={logo} alt="Logo" className="w-6 h-6 mt-1" crossOrigin="anonymous" />
             </div>
-            <div className="w-2/3 px-4">
-              <p className="mb-2 font-bold text-center text-xl text-pink-700">{Data.cliente}</p>
-              <p className="mb-2 text-center text-pink-700">{Data.prenda}</p>
-              <p className="mb-2 text-pink-600 font-bold text-xs">Estado: {estatus}</p>
-              <div className="flex flex-row justify-between mb-2">
-                <p className="text-pink-600">{Data.talla}</p>
-                <p className="text-pink-600">{Data.color}</p>
-              </div>
-              <div className="flex flex-row justify-between mb-2">
-                <div className="flex flex-col">
-                  <p className="text-pink-600 text-sm">Precio:</p>
-                  <p className="text-pink-600">
-                    ${Data.precioOriginal !== undefined ? Data.precioOriginal : Data.precio}
-                  </p>
 
+            <div className="w-2/3 pl-2">
+              <p className="font-bold text-center text-pink-700 text-sm mb-1">{Data.cliente}</p>
+              <p className="text-center text-pink-700 text-xs mb-1">{Data.prenda}</p>
+              <p className="text-pink-600 font-bold text-xs mb-1">Estado: {estatus}</p>
+              
+              <div className="flex justify-between mb-1">
+                <span className="text-pink-600 text-xs">{Data.talla}</span>
+                <span className="text-pink-600 text-xs">{Data.color}</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-1 mb-2">
+                <div>
+                  <p className="text-pink-600 text-xs">Precio:</p>
+                  <p className="text-pink-600 text-xs">
+                    ${Data.precioOriginal ?? Data.precio}
+                  </p>
                 </div>
-                <div className="flex flex-col">
-                  <p className="text-pink-600 text-sm">Con descuento:</p>
-                  <p className="text-pink-600 font-bold">${Data.precio}</p>
+                <div>
+                  <p className="text-pink-600 text-xs">Final:</p>
+                  <p className="text-pink-600 font-bold text-xs">${Data.precio}</p>
                 </div>
-                <div className="flex flex-col">
-                  <p className="text-pink-600 text-sm">Restante:</p>
-                  <p className="text-pink-400 font-bold">
+                <div>
+                  <p className="text-pink-600 text-xs">Restante:</p>
+                  <p className="text-pink-400 font-bold text-xs">
                     ${Number(Data.precio) - Number(Data.pago)}
                   </p>
-
                 </div>
               </div>
+
               <div>
-                <p className="font-bold text-center text-pink-600 mb-2">Pagos</p>
-                {Data.pagos.map((pago, index) => (
-                  <div className="flex flex-row justify-between" key={index}>
-                    <p className="text-pink-600">{pago.fecha}</p>
-                    <p className="text-pink-600">${pago.monto}</p>
+                <p className="font-bold text-center text-pink-600 text-xs mb-1">Pagos</p>
+                {Data.pagos?.map((pago, index) => (
+                  <div key={index} className="flex justify-between">
+                    <span className="text-pink-600 text-xs">{pago.fecha}</span>
+                    <span className="text-pink-600 text-xs">${pago.monto}</span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
         </div>
-        <div className="w-full flex justify-center">
-          <form onSubmit={handleSubmit} className="lg:border-2 lg:shadow-xl h-auto px-5 lg:py-2 pb-20 mt-10 rounded-lg border-pink-200 w-full lg:w-2/3">
-            <div className="flex flex-col pt-2">
-              <label className="px-2 text-pink-800 font-bold" htmlFor="datePicker">Fecha de pago</label>
-              <input className="w-full px-2 h-8 bg-white rounded-md shadow-sm" type="date" id="datePicker" value={fecha}
-                onChange={manejadorFecha} placeholder="Fecha" />
+
+        <div className="w-full flex justify-center mt-4">
+          <form onSubmit={handleSubmit} className="border-2 p-4 rounded-lg border-pink-200 w-full max-w-sm bg-white">
+            <div className="mb-3">
+              <label className="block text-pink-800 font-bold mb-1">Fecha de pago</label>
+              <input
+                type="date"
+                value={fecha}
+                onChange={manejadorFecha}
+                className="w-full p-2 border rounded"
+                required
+              />
             </div>
-            <div className="flex flex-col pt-2">
-              <label className="px-2 text-pink-800 font-bold">Monto:</label>
-              <input className="w-full px-2 h-8 bg-white rounded-md shadow-sm" type="number" value={monto}
-                onChange={handleMonto} placeholder="Monto" />
+            <div className="mb-4">
+              <label className="block text-pink-800 font-bold mb-1">Monto:</label>
+              <input
+                type="number"
+                value={monto}
+                onChange={handleMonto}
+                className="w-full p-2 border rounded"
+                placeholder="Monto"
+                required
+              />
             </div>
-            <div className="flex w-full flex-col pt-2">
-              <div className="w-full flex justify-center">
-                <button
-                  type="submit"
-                  className="mt-2 py-2 px-4 h-10 mx-5 text-sm bg-pink-400 w-1/2 mb-5 shadow-xl text-white rounded-md cursor-pointer hover:bg-pink-200"
-                >
-                  Agregar pago
-                </button>
-                <button type="button" onClick={exportarNotaComoImagen} className="h-10 text-sm w-1/2 mt-2 mx-5 py-2 bg-pink-400 text-white rounded-md">
-                  Descargar nota
-                </button>
-              </div>
+            <div className="flex flex-col gap-2">
+              <button
+                type="submit"
+                className="bg-pink-400 text-white p-2 rounded hover:bg-pink-500 disabled:opacity-50"
+                disabled={generandoImagen}
+              >
+                Agregar pago
+              </button>
+              <button
+                type="button"
+                onClick={previsualizarNota}
+                className="bg-pink-300 text-pink-800 p-2 rounded hover:bg-pink-400 disabled:opacity-50"
+                disabled={generandoImagen}
+              >
+                {generandoImagen ? 'Generando...' : 'Previsualizar'}
+              </button>
+              <button
+                type="button"
+                onClick={exportarNotaComoImagen}
+                className="bg-pink-400 text-white p-2 rounded hover:bg-pink-500 disabled:opacity-50"
+                disabled={generandoImagen}
+              >
+                {generandoImagen ? 'Generando...' : 'Descargar nota'}
+              </button>
             </div>
           </form>
         </div>
       </main>
+
       <Footer manejadorMenuAñadir={manejadorMenuAñadir} />
+      <ModalPrevisualizacion />
     </div>
-  )
+  );
 }
 
 export default AgregarPago;

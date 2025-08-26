@@ -110,7 +110,6 @@ function DetallePrenda() {
   const uploadImageBatch = async (filesBatch, batchNumber) => {
     try {
       const uploadFormData = new FormData();
-      
       filesBatch.forEach((file, index) => {
         const fileName = `malim-${Date.now()}-${batchNumber}-${index}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
         uploadFormData.append("files", file, fileName);
@@ -134,7 +133,6 @@ function DetallePrenda() {
       }
 
       const data = await response.json();
-      
       if (data && data.urls && Array.isArray(data.urls)) {
         return data.urls;
       } else {
@@ -150,11 +148,10 @@ function DetallePrenda() {
   // ✅ FUNCIÓN PRINCIPAL QUE MANEJA LOTES DE MÁXIMO 2 IMÁGENES
   const uploadAllImages = async (files) => {
     if (files.length === 0) return [];
-    
+
     // Dividir en lotes de máximo 2 imágenes
     const batchSize = 2;
     const batches = [];
-    
     for (let i = 0; i < files.length; i += batchSize) {
       batches.push(files.slice(i, i + batchSize));
     }
@@ -166,14 +163,12 @@ function DetallePrenda() {
       try {
         const batchUrls = await uploadImageBatch(batches[i], i);
         allUrls.push(...batchUrls);
-        
         setUploadProgress({ current: i + 1, total: batches.length });
-        
+
         // Pequeña pausa entre lotes para no saturar el backend
         if (i < batches.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 800));
         }
-        
       } catch (error) {
         throw new Error(`Fallo en lote ${i + 1}/${batches.length}: ${error.message}`);
       }
@@ -202,14 +197,88 @@ function DetallePrenda() {
     }
   };
 
-  const obtenerPublicId = (url) => {
-    const parts = url.split("/");
-    const publicIdWithExtension = parts[parts.length - 1];
-    const publicId = publicIdWithExtension.split(".")[0];
-    return `${parts[parts.length - 2]}/${publicId}`;
-  };
-
   const CLOUDINARY_UPLOAD_PRESET = "malimapp";
+
+  // Función auxiliar para eliminar imágenes del storage
+  const deleteImageFromStorage = async (fotoUrl) => {
+    try {
+      if (fotoUrl.includes("res.cloudinary.com")) {
+        console.log("Eliminando de Cloudinary:", fotoUrl);
+        const urlParts = fotoUrl.split('/');
+        const uploadIndex = urlParts.indexOf('upload');
+        let publicId = '';
+
+        if (uploadIndex !== -1 && urlParts.length > uploadIndex + 2) {
+          const versionPart = urlParts[uploadIndex + 1];
+          if (versionPart.startsWith('v')) {
+            publicId = urlParts.slice(uploadIndex + 2).join('/');
+          } else {
+            publicId = urlParts.slice(uploadIndex + 1).join('/');
+          }
+          publicId = publicId.replace(/\.[^/.]+$/, "");
+        }
+
+        if (!publicId) {
+          console.warn("No se pudo extraer public_id de:", fotoUrl);
+          return false;
+        }
+
+        const response = await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            public_id: publicId,
+            upload_preset: CLOUDINARY_UPLOAD_PRESET,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Cloudinary error: ${response.status}`);
+        }
+
+        console.log("Imagen de Cloudinary eliminada:", publicId);
+        return true;
+
+      } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
+        console.log("Eliminando de R2:", fotoUrl);
+        
+        const encodedUrl = encodeURIComponent(fotoUrl);
+        const backendUrl = `${BACKEND_URL}/api/deleteImage?url=${encodedUrl}`;
+        
+        console.log("Llamando a:", backendUrl);
+        
+        const response = await fetch(backendUrl, { 
+          method: "DELETE",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+          }
+        });
+
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || `Error R2: ${response.status}`);
+        }
+        
+        if (!result.success) {
+          throw new Error(result.error || "Error al eliminar imagen de R2");
+        }
+        
+        console.log("Imagen de R2 eliminada:", fotoUrl, result.message);
+        return true;
+
+      } else {
+        console.warn("URL de imagen no reconocida:", fotoUrl);
+        return false;
+      }
+    } catch (error) {
+      console.error(`Error eliminando imagen ${fotoUrl}:`, error);
+      throw error;
+    }
+  };
 
   const handleDelete = async () => {
     const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar esta prenda?");
@@ -219,78 +288,57 @@ function DetallePrenda() {
       setLoading(true);
       console.log("Iniciando eliminación de prenda:", id);
 
-      const deletePromises = formData.fotos.map(async (fotoUrl) => {
-        try {
-          if (fotoUrl.includes("res.cloudinary.com")) {
-            console.log("Eliminando de Cloudinary:", fotoUrl);
-            const urlParts = fotoUrl.split('/');
-            const uploadIndex = urlParts.indexOf('upload');
-            let publicId = '';
-            
-            if (uploadIndex !== -1 && urlParts.length > uploadIndex + 2) {
-              const versionPart = urlParts[uploadIndex + 1];
-              if (versionPart.startsWith('v')) {
-                publicId = urlParts.slice(uploadIndex + 2).join('/');
-              } else {
-                publicId = urlParts.slice(uploadIndex + 1).join('/');
-              }
-              publicId = publicId.replace(/\.[^/.]+$/, "");
-            }
+      // Eliminar imágenes del storage
+      const deleteResults = await Promise.allSettled(
+        formData.fotos.map(fotoUrl => deleteImageFromStorage(fotoUrl))
+      );
 
-            if (!publicId) {
-              console.warn("No se pudo extraer public_id de:", fotoUrl);
-              return;
-            }
+      // Verificar si hubo errores graves
+      const criticalErrors = deleteResults.filter(
+        result => result.status === 'rejected' && 
+        !result.reason.message.includes('No se pudo extraer public_id')
+      );
 
-            const response = await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
-              method: "POST",
-              headers: { 
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                public_id: publicId,
-                upload_preset: CLOUDINARY_UPLOAD_PRESET,
-              }),
-            });
+      if (criticalErrors.length > 0) {
+        console.warn("Algunas imágenes no se pudieron eliminar:", criticalErrors);
+      }
 
-            if (!response.ok) {
-              throw new Error(`Cloudinary error: ${response.status}`);
-            }
-
-            console.log("Imagen de Cloudinary eliminada:", publicId);
-
-          } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
-            console.log("Eliminando de R2:", fotoUrl);
-            const response = await fetch(
-              `https://malim-backend.vercel.app/api/deleteImage?url=${encodeURIComponent(fotoUrl)}`,
-              { 
-                method: "DELETE",
-                headers: {
-                  "Accept": "application/json"
-                }
-              }
-            );
-
-            const result = await response.json();
-            if (!response.ok || !result.success) {
-              throw new Error(result.error || `R2 error: ${response.status}`);
-            }
-
-            console.log("Imagen de R2 eliminada:", fotoUrl);
-          }
-        } catch (error) {
-          console.error(`Error eliminando imagen ${fotoUrl}:`, error);
-        }
-      });
-
-      await Promise.allSettled(deletePromises);
+      // Eliminar documento de Firestore
       await deleteDoc(doc(db, "disponible", id));
+      
       alert("Prenda eliminada con éxito");
       navigate("/Disponible");
 
     } catch (error) {
       console.error("Error general al eliminar la prenda:", error);
       alert("Error al eliminar la prenda: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteImage = async (fotoUrl) => {
+    const confirm = window.confirm("¿Seguro que quieres eliminar esta imagen?");
+    if (!confirm) return;
+
+    try {
+      setLoading(true);
+      
+      // Eliminar del storage
+      await deleteImageFromStorage(fotoUrl);
+      
+      // Quitar del array de fotos en Firebase
+      const nuevasFotos = formData.fotos.filter((foto) => foto !== fotoUrl);
+      setFormData({ ...formData, fotos: nuevasFotos });
+
+      const prendaRef = doc(db, "disponible", id);
+      await updateDoc(prendaRef, { fotos: nuevasFotos });
+
+      alert("Imagen eliminada con éxito");
+
+    } catch (error) {
+      console.error("Error al eliminar imagen individual:", error);
+      alert("Error al eliminar la imagen: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -360,85 +408,6 @@ function DetallePrenda() {
     } finally {
       setLoading(false);
       setUploadProgress({ current: 0, total: 0 });
-    }
-  };
-
-  const handleDeleteImage = async (fotoUrl) => {
-    const confirm = window.confirm("¿Seguro que quieres eliminar esta imagen?");
-    if (!confirm) return;
-
-    try {
-      setLoading(true);
-      console.log("Eliminando imagen individual:", fotoUrl);
-
-      if (fotoUrl.includes("res.cloudinary.com")) {
-        const urlParts = fotoUrl.split('/');
-        const uploadIndex = urlParts.indexOf('upload');
-        let publicId = '';
-        
-        if (uploadIndex !== -1 && urlParts.length > uploadIndex + 2) {
-          const versionPart = urlParts[uploadIndex + 1];
-          if (versionPart.startsWith('v')) {
-            publicId = urlParts.slice(uploadIndex + 2).join('/');
-          } else {
-            publicId = urlParts.slice(uploadIndex + 1).join('/');
-          }
-          publicId = publicId.replace(/\.[^/.]+$/, "");
-        }
-
-        if (!publicId) {
-          throw new Error("No se pudo extraer public_id de la URL");
-        }
-
-        const response = await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            public_id: publicId,
-            upload_preset: CLOUDINARY_UPLOAD_PRESET,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Error Cloudinary: ${response.status}`);
-        }
-
-      } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
-        const response = await fetch(
-          `https://malim-backend.vercel.app/api/deleteImage?url=${encodeURIComponent(fotoUrl)}`,
-          { 
-            method: "DELETE",
-            headers: {
-              "Accept": "application/json"
-            }
-          }
-        );
-
-        const result = await response.json();
-        if (!response.ok || !result.success) {
-          throw new Error(result.error || `Error R2: ${response.status}`);
-        }
-
-      } else {
-        throw new Error("URL de imagen no reconocida");
-      }
-
-      // Quitar del array de fotos en Firebase
-      const nuevasFotos = formData.fotos.filter((foto) => foto !== fotoUrl);
-      setFormData({ ...formData, fotos: nuevasFotos });
-
-      const prendaRef = doc(db, "disponible", id);
-      await updateDoc(prendaRef, { fotos: nuevasFotos });
-
-      alert("Imagen eliminada con éxito");
-
-    } catch (error) {
-      console.error("Error al eliminar imagen individual:", error);
-      alert("Error al eliminar la imagen: " + error.message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -518,7 +487,6 @@ function DetallePrenda() {
       {/* Formulario de edición */}
       <main className="pb-20 flex flex-center justify-center">
         <form onSubmit={handleSubmit} className="lg:border-2 lg:shadow-xl px-5 lg:py-2 pb-20 mt-2 rounded-lg border-pink-200 max-w-lg w-full">
-          
           <div className="flex flex-col justify-center my-3">
             <input
               type="file"
