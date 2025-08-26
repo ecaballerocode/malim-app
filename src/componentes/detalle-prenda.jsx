@@ -201,12 +201,12 @@ function DetallePrenda() {
 
   // Función auxiliar para eliminar imágenes del storage
   // Función auxiliar para eliminar imágenes del storage
+  // Función auxiliar para eliminar imágenes del storage - VERSIÓN CORREGIDA
   const deleteImageFromStorage = async (fotoUrl) => {
     try {
       if (fotoUrl.includes("res.cloudinary.com")) {
         console.log("Eliminando de Cloudinary:", fotoUrl);
 
-        // Extraer el public_id de la URL de Cloudinary
         const urlParts = fotoUrl.split('/');
         const uploadIndex = urlParts.indexOf('upload');
         let publicId = '';
@@ -226,7 +226,6 @@ function DetallePrenda() {
           return false;
         }
 
-        // Eliminar de Cloudinary
         const response = await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
           method: "POST",
           headers: {
@@ -248,9 +247,8 @@ function DetallePrenda() {
       } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
         console.log("Eliminando de R2:", fotoUrl);
 
-        // Codificar la URL correctamente
-        const encodedUrl = encodeURIComponent(fotoUrl);
-        const backendUrl = `${BACKEND_URL}/api/deleteImage?url=${encodedUrl}`;
+        // ✅ CORRECCIÓN: Enviar la URL en el body, no como query parameter
+        const backendUrl = `${BACKEND_URL}/api/deleteImage`;
 
         console.log("Llamando a:", backendUrl);
 
@@ -259,13 +257,13 @@ function DetallePrenda() {
           headers: {
             "Accept": "application/json",
             "Content-Type": "application/json"
-          }
+          },
+          body: JSON.stringify({ url: fotoUrl }) // ✅ URL en el body
         });
 
         const result = await response.json();
 
         if (!response.ok) {
-          // Si el error es que la imagen no existe, continuamos igual
           if (response.status === 404) {
             console.warn("Imagen no encontrada en R2, continuando:", fotoUrl);
             return true;
@@ -282,10 +280,9 @@ function DetallePrenda() {
 
       } else {
         console.warn("URL de imagen no reconocida, no se elimina:", fotoUrl);
-        return true; // Consideramos éxito para URLs no reconocidas
+        return true;
       }
     } catch (error) {
-      // Si es un error de "no encontrado", continuamos
       if (error.message.includes("no fue encontrada") ||
         error.message.includes("not found")) {
         console.warn("Imagen no encontrada, continuando:", fotoUrl);
