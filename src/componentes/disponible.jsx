@@ -66,6 +66,7 @@ function Disponible() {
   };
 
   // Eliminar en lote (Cloudinary + Firestore)
+  // Eliminar en lote (Cloudinary + R2 + Firestore)
   const eliminarSeleccionados = async () => {
     const confirmDelete = window.confirm(
       `¿Seguro que deseas eliminar ${seleccionados.length} prendas seleccionadas?`
@@ -73,30 +74,111 @@ function Disponible() {
     if (!confirmDelete) return;
 
     try {
+      // Función para eliminar imágenes del storage (Cloudinary o R2)
+      const deleteImageFromStorage = async (fotoUrl) => {
+        try {
+          if (fotoUrl.includes("res.cloudinary.com")) {
+            console.log("Eliminando de Cloudinary:", fotoUrl);
+
+            const urlParts = fotoUrl.split('/');
+            const uploadIndex = urlParts.indexOf('upload');
+            let publicId = '';
+
+            if (uploadIndex !== -1 && urlParts.length > uploadIndex + 2) {
+              const versionPart = urlParts[uploadIndex + 1];
+              if (versionPart.startsWith('v')) {
+                publicId = urlParts.slice(uploadIndex + 2).join('/');
+              } else {
+                publicId = urlParts.slice(uploadIndex + 1).join('/');
+              }
+              publicId = publicId.replace(/\.[^/.]+$/, "");
+            }
+
+            if (!publicId) {
+              console.warn("No se pudo extraer public_id de:", fotoUrl);
+              return false;
+            }
+
+            const response = await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                public_id: publicId,
+                upload_preset: CLOUDINARY_UPLOAD_PRESET,
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error(`Cloudinary error: ${response.status}`);
+            }
+
+            console.log("Imagen de Cloudinary eliminada:", publicId);
+            return true;
+
+          } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
+            console.log("Eliminando de R2:", fotoUrl);
+
+            const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app";
+            const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
+              method: "DELETE",
+              headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({ url: fotoUrl })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+              if (response.status === 404) {
+                console.warn("Imagen no encontrada en R2, continuando:", fotoUrl);
+                return true;
+              }
+              throw new Error(result.error || `Error R2: ${response.status}`);
+            }
+
+            if (!result.success && !result.message.includes("no se requiere eliminación")) {
+              throw new Error(result.error || "Error al eliminar imagen de R2");
+            }
+
+            console.log("Imagen de R2 eliminada:", fotoUrl);
+            return true;
+
+          } else {
+            console.warn("URL de imagen no reconocida, no se elimina:", fotoUrl);
+            return true;
+          }
+        } catch (error) {
+          if (error.message.includes("no fue encontrada") ||
+            error.message.includes("not found")) {
+            console.warn("Imagen no encontrada, continuando:", fotoUrl);
+            return true;
+          }
+          console.error(`Error eliminando imagen ${fotoUrl}:`, error);
+          throw error;
+        }
+      };
+
+      // Procesar cada prenda seleccionada
       await Promise.all(
         seleccionados.map(async (id) => {
           const prenda = prendasDisponibles.find((p) => p.id === id);
           if (!prenda) return;
 
-          // Eliminar imágenes en Cloudinary
+          // Eliminar imágenes del storage (manejar errores individualmente)
           if (prenda.fotos && prenda.fotos.length > 0) {
-            const deletePromises = prenda.fotos.map(async (fotoUrl) => {
-              const publicId = obtenerPublicId(fotoUrl);
-              if (publicId) {
-                await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/destroy`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    public_id: publicId,
-                    upload_preset: CLOUDINARY_UPLOAD_PRESET,
-                  }),
-                });
-              }
-            });
+            const deletePromises = prenda.fotos.map(fotoUrl =>
+              deleteImageFromStorage(fotoUrl)
+                .catch(error => {
+                  console.warn(`Error eliminando imagen ${fotoUrl}:`, error.message);
+                  return true; // Continuar aunque falle una imagen
+                })
+            );
             await Promise.all(deletePromises);
           }
 
-          // Eliminar documento en Firestore
+          // Eliminar documento de Firestore
           await deleteDoc(doc(db, "disponible", id));
         })
       );
@@ -104,7 +186,8 @@ function Disponible() {
       alert("Prendas eliminadas con éxito");
       setSeleccionados([]);
       setModoSeleccion(false);
-      await fetchDocuments(); // recargar con orden
+      await fetchDocuments(); // Recargar la lista
+
     } catch (error) {
       console.error("Error eliminando prendas:", error);
       alert("Error eliminando algunas prendas");
@@ -124,7 +207,7 @@ function Disponible() {
   // ---- Long-press (click sostenido) para activar selección en móvil/desktop ----
   const pressTimerRef = useRef(null);
   const longPressTriggeredRef = useRef(false);
-  const LONG_PRESS_MS = 450;
+  const LONG_PRESS_MS = 2000;
 
   const startPress = (id) => {
     clearTimeout(pressTimerRef.current);
@@ -173,12 +256,12 @@ function Disponible() {
 
   // Filtros
   const categoriaOptions = [
-    "Abrigos","Accesorios","Patria","Blusas","Playeras","Playeras deportivas","Conjuntos",
-    "Conjuntos deportivos","Chamarras","Sudaderas","Maxi sudaderas","Maxi vestidos","Maxi cobijas",
-    "Ensambles","Pantalones","Pants","Shorts","Infantil niño","Infantil niña","Medias","Leggins",
-    "Mallones","Ropa interior","Sacos","Blazers","Capas","Palazzos","Camisas","Gorros","Calzado",
-    "Chalecos","Blusones","Pijamas","Guantes","Faldas","Suéteres","Overoles","Otros","Sin Categoria",
-    "Niños uisex","Gabardinas","Vestidos"
+    "Abrigos", "Accesorios", "Patria", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
+    "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas", "Maxi vestidos", "Maxi cobijas",
+    "Ensambles", "Pantalones", "Pants", "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
+    "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos", "Camisas", "Gorros", "Calzado",
+    "Chalecos", "Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres", "Overoles", "Otros", "Sin Categoria",
+    "Niños uisex", "Gabardinas", "Vestidos"
   ].map((cat) => ({ value: cat, label: cat }));
 
   const proveedoresOptions = proveedores.map((prov) => ({
@@ -232,16 +315,24 @@ function Disponible() {
 
         {/* barra selección activa */}
         {modoSeleccion && (
-          <div className="mx-5 mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 flex items-center justify-between">
-            <span className="text-sm">
-              {seleccionados.length} seleccionada{seleccionados.length !== 1 ? "s" : ""}
+          <div className="fixed top-16 left-0 right-0 bg-red-500 text-white p-3 z-40 flex justify-between items-center shadow-lg">
+            <span className="text-sm font-bold">
+              {seleccionados.length} prenda(s) seleccionada(s)
             </span>
-            <button
-              onClick={limpiarSeleccion}
-              className="text-xs underline hover:opacity-80"
-            >
-              Cancelar selección
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={limpiarSeleccion}
+                className="bg-white text-red-600 px-3 py-1 rounded text-sm font-bold"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={eliminarSeleccionados}
+                className="bg-white text-red-600 px-3 py-1 rounded text-sm font-bold flex items-center gap-1"
+              >
+                <FaTrash size={14} /> Eliminar
+              </button>
+            </div>
           </div>
         )}
 
@@ -262,9 +353,8 @@ function Disponible() {
               onMouseLeave={cancelPress}
               onTouchStart={() => startPress(docu.id)}
               onTouchEnd={cancelPress}
-              className={`producto h-auto border-2 rounded-lg shadow-xl cursor-pointer transition ${
-                seleccionados.includes(docu.id) ? "border-red-500 bg-red-100" : "border-pink-200"
-              }`}
+              className={`producto h-auto border-2 rounded-lg shadow-xl cursor-pointer transition ${seleccionados.includes(docu.id) ? "border-red-500 bg-red-100" : "border-pink-200"
+                }`}
             >
               <div className="lg:h-64 h-40 w-full rounded-lg overflow-hidden">
                 {docu.fotos && docu.fotos.length > 0 ? (

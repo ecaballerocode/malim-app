@@ -8,6 +8,7 @@ import MenuLateral from "./menu-lateral";
 import Footer from "./footer";
 import MenuAñadir from "./menu-añadir";
 import logo from "../logo-negro.png";
+import * as htmlToImage from "html-to-image";
 
 function AgregarPago() {
   const [menuAbierto, setmenuAbierto] = useState(false);
@@ -44,6 +45,15 @@ function AgregarPago() {
     pagos: []
   });
 
+  // Colores de branding
+  const colors = {
+    primary: '#F5EBDD',
+    secondary: '#D88C6D',
+    accent: '#F6D28C',
+    lightGray: '#C2C2C2',
+    darkText: '#3C3C3C',
+  };
+
   const normalizeImageUrl = (url) => {
     if (!url) return '';
     if (Array.isArray(url)) {
@@ -53,6 +63,12 @@ function AgregarPago() {
     if (url.startsWith('//')) {
       url = 'https:' + url;
     }
+
+    if (url.includes('r2.dev') || url.includes('pub-')) {
+      const separator = url.includes('?') ? '&' : '?';
+      url = `${url}${separator}t=${Date.now()}`;
+    }
+
     return url;
   };
 
@@ -145,164 +161,83 @@ function AgregarPago() {
     setMonto(Number(e.target.value));
   };
 
-  const generarImagenNota = async (descargar = false) => {
+  const waitForImages = (node) => {
+    const imgs = Array.from(node.querySelectorAll("img"));
+    return Promise.all(
+      imgs.map(img => new Promise(resolve => {
+        img.crossOrigin = "anonymous";
+        if (img.complete && img.naturalWidth !== 0) return resolve();
+        img.addEventListener("load", () => resolve(), { once: true });
+        img.addEventListener("error", () => resolve(), { once: true });
+        setTimeout(() => resolve(), 3000);
+      }))
+    );
+  };
+
+  const exportarNotaComoImagen = async () => {
     setGenerandoImagen(true);
     try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
-      // Tamaño óptimo para nota
-      canvas.width = 400;
-      canvas.height = 650;
-      
-      // Fondo
-      ctx.fillStyle = '#f5ebdd';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Cargar y dibujar imagen de la prenda si existe
-      let yPosition = 30;
-      
-      if (Data.fotos && !imageError) {
-        const imgUrl = normalizeImageUrl(Data.fotos);
-        if (imgUrl) {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.src = imgUrl;
-          
-          // Esperar a que cargue la imagen o timeout
-          await new Promise((resolve) => {
-            img.onload = resolve;
-            img.onerror = resolve;
-            setTimeout(resolve, 3000);
-          });
-          
-          if (img.complete && img.naturalWidth !== 0) {
-            // Dibujar imagen (tamaño reducido)
-            const maxWidth = 150;
-            const maxHeight = 150;
-            const ratio = Math.min(maxWidth / img.width, maxHeight / img.height);
-            const width = img.width * ratio;
-            const height = img.height * ratio;
-            
-            ctx.drawImage(img, (canvas.width - width) / 2, yPosition, width, height);
-            yPosition += height + 20;
-          }
-        }
+      const divNota = document.getElementById("Nota");
+      if (!divNota) {
+        alert("No se encontró la nota.");
+        return;
       }
-      
-      // Dibujar logo
-      const logoImg = new Image();
-      logoImg.src = logo;
-      await new Promise((resolve) => {
-        logoImg.onload = resolve;
-        logoImg.onerror = resolve;
+
+      // Esperar a que las imágenes se carguen (método que funcionaba antes)
+      await waitForImages(divNota);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // USAR html-to-image COMO ANTES (lo que funcionaba)
+      const dataUrl = await htmlToImage.toJpeg(divNota, {
+        quality: 1,
+        backgroundColor: "#f5ebdd",
+        pixelRatio: 5, // Aumentar de 1 a 3 (o hasta 5 para máxima calidad)
       });
-      ctx.drawImage(logoImg, canvas.width - 40, 10, 30, 30);
-      
-      // Estilos de texto
-      ctx.font = 'bold 18px Arial';
-      ctx.fillStyle = '#9d174d';
-      ctx.textAlign = 'center';
-      
-      // Datos de la nota
-      const notaData = {
-        cliente: Data.cliente || 'Cliente',
-        prenda: Data.prenda || '',
-        talla: Data.talla || '',
-        color: Data.color || '',
-        precioOriginal: Data.precioOriginal ?? Data.precio,
-        precioFinal: Data.precio,
-        saldoPendiente: Number(Data.precio) - Number(Data.pago),
-        pagos: Data.pagos || [],
-        estatus: estatus
-      };
-      
-      // Cliente
-      ctx.fillText(notaData.cliente, canvas.width / 2, yPosition);
-      yPosition += 30;
-      
-      // Prenda
-      ctx.font = '16px Arial';
-      ctx.fillText(notaData.prenda, canvas.width / 2, yPosition);
-      yPosition += 25;
-      
-      // Talla y Color
-      ctx.font = '14px Arial';
-      ctx.fillText(`Talla: ${notaData.talla} | Color: ${notaData.color}`, canvas.width / 2, yPosition);
-      yPosition += 30;
-      
-      // Precios
-      ctx.fillText(`Precio original: $${notaData.precioOriginal}`, canvas.width / 2, yPosition);
-      yPosition += 25;
-      
-      ctx.font = 'bold 16px Arial';
-      ctx.fillText(`Precio final: $${notaData.precioFinal}`, canvas.width / 2, yPosition);
-      yPosition += 30;
-      
-      ctx.fillStyle = '#ec4899';
-      ctx.fillText(`Saldo pendiente: $${notaData.saldoPendiente}`, canvas.width / 2, yPosition);
-      yPosition += 35;
-      
-      // Estado
-      ctx.fillStyle = '#9d174d';
-      ctx.fillText(`Estado: ${notaData.estatus}`, canvas.width / 2, yPosition);
-      yPosition += 40;
-      
-      // Pagos
-      ctx.font = 'bold 16px Arial';
-      ctx.fillText('PAGOS REALIZADOS', canvas.width / 2, yPosition);
-      yPosition += 30;
-      
-      ctx.font = '14px Arial';
-      ctx.fillStyle = '#000000';
-      notaData.pagos.forEach((pago, index) => {
-        if (yPosition < canvas.height - 20) {
-          ctx.fillText(`${pago.fecha}: $${pago.monto}`, canvas.width / 2, yPosition);
-          yPosition += 22;
-        }
-      });
-      
-      // Línea final
-      yPosition += 10;
-      ctx.strokeStyle = '#9d174d';
-      ctx.beginPath();
-      ctx.moveTo(50, yPosition);
-      ctx.lineTo(canvas.width - 50, yPosition);
-      ctx.stroke();
-      
-      // Convertir a data URL
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
-      
-      if (descargar) {
-        const link = document.createElement('a');
-        link.href = dataUrl;
-        link.download = `nota-${notaData.cliente}-${Date.now()}.jpg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-      
-      return dataUrl;
-      
+
+      // Descargar directamente como antes
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `nota-${Data.cliente || 'pedido'}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
     } catch (error) {
-      console.error('Error al generar imagen:', error);
-      alert('Error al generar la nota: ' + error.message);
-      return null;
+      console.error("Error al exportar la nota como imagen:", error);
+      alert("Hubo un error al generar la imagen.");
     } finally {
       setGenerandoImagen(false);
     }
   };
 
   const previsualizarNota = async () => {
-    const dataUrl = await generarImagenNota(false);
-    if (dataUrl) {
+    setGenerandoImagen(true);
+    try {
+      const divNota = document.getElementById("Nota");
+      if (!divNota) {
+        alert("No se encontró la nota.");
+        return;
+      }
+
+      // Esperar a que las imágenes se carguen
+      await waitForImages(divNota);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // USAR html-to-image para previsualización también
+      const dataUrl = await htmlToImage.toJpeg(divNota, {
+        quality: 1,
+        backgroundColor: "#f5ebdd",
+      });
+
       setImagenPrevia(dataUrl);
       setMostrarPrevia(true);
-    }
-  };
 
-  const exportarNotaComoImagen = async () => {
-    await generarImagenNota(true);
+    } catch (error) {
+      console.error("Error al previsualizar la nota:", error);
+      alert("Hubo un error al generar la previsualización.");
+    } finally {
+      setGenerandoImagen(false);
+    }
   };
 
   const handleImageError = () => {
@@ -318,25 +253,25 @@ function AgregarPago() {
           <h2 className="text-lg font-bold mb-4 text-pink-800">Previsualización de Nota</h2>
           {imagenPrevia ? (
             <div className="flex flex-col items-center">
-              <img 
-                src={imagenPrevia} 
-                alt="Nota de pago" 
+              <img
+                src={imagenPrevia}
+                alt="Nota de pago"
                 className="w-full h-auto mb-4 rounded border max-h-96 object-contain"
               />
               <div className="flex flex-col sm:flex-row gap-2 w-full">
-                <button 
+                <button
                   onClick={() => setMostrarPrevia(false)}
                   className="bg-gray-300 px-4 py-2 rounded flex-1"
                 >
                   Cerrar
                 </button>
-                <button 
+                <button
                   onClick={() => window.open(imagenPrevia, '_blank')}
                   className="bg-pink-300 px-4 py-2 rounded flex-1"
                 >
                   Abrir
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     const link = document.createElement('a');
                     link.href = imagenPrevia;
@@ -367,76 +302,81 @@ function AgregarPago() {
           Agregar pago a {Data.cliente}
         </h1>
       </header>
+
       <MenuLateral menuAbierto={menuAbierto} />
       <MenuAñadir menuAñadir={menuAñadir} />
 
-      <main className="pb-16 pt-10 w-full flex flex-col items-center">
-        {/* Nota optimizada para móviles */}
-        <div
-          id="Nota"
-          className="border-2 p-3 rounded-lg shadow-xl w-full max-w-sm mx-auto border-pink-200 bg-pink-100"
-        >
-          <div className="flex flex-row">
-            <div className="w-1/3 flex flex-col items-center">
-              {!imageError && Data.fotos ? (
-                <img
-                  src={normalizeImageUrl(Data.fotos)}
-                  alt="Prenda"
-                  crossOrigin="anonymous"
-                  className="rounded-lg w-full max-h-28 object-contain"
-                  onError={handleImageError}
-                />
-              ) : (
-                <div className="w-full h-28 bg-pink-200 flex items-center justify-center rounded-lg">
-                  <span className="text-pink-600 text-xs">Sin imagen</span>
-                </div>
-              )}
-              <img src={logo} alt="Logo" className="w-6 h-6 mt-1" crossOrigin="anonymous" />
-            </div>
-
-            <div className="w-2/3 pl-2">
-              <p className="font-bold text-center text-pink-700 text-sm mb-1">{Data.cliente}</p>
-              <p className="text-center text-pink-700 text-xs mb-1">{Data.prenda}</p>
-              <p className="text-pink-600 font-bold text-xs mb-1">Estado: {estatus}</p>
-              <div className="flex justify-between mb-1">
-                <span className="text-pink-600 text-xs">{Data.talla}</span>
-                <span className="text-pink-600 text-xs">{Data.color}</span>
-              </div>
-
-              <div className="grid grid-cols-3 gap-1 mb-2">
-                <div>
-                  <p className="text-pink-600 text-xs">Precio:</p>
-                  <p className="text-pink-600 text-xs">
-                    ${Data.precioOriginal ?? Data.precio}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-pink-600 text-xs">Final:</p>
-                  <p className="text-pink-600 font-bold text-xs">${Data.precio}</p>
-                </div>
-                <div>
-                  <p className="text-pink-600 text-xs">Restante:</p>
-                  <p className="text-pink-400 font-bold text-xs">
-                    ${Number(Data.precio) - Number(Data.pago)}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <p className="font-bold text-center text-pink-600 text-xs mb-1">Pagos</p>
-                {Data.pagos?.map((pago, index) => (
-                  <div key={index} className="flex justify-between">
-                    <span className="text-pink-600 text-xs">{pago.fecha}</span>
-                    <span className="text-pink-600 text-xs">${pago.monto}</span>
+      <main className="pb-16 pt-10 w-full flex flex-col lg:flex-row lg:justify-between lg:items-start lg:px-4">
+        {/* NOTA A LA IZQUIERDA - FIJADA PARA CAPTURA */}
+        <div className="lg:w-1/2 flex justify-center lg:justify-start mb-4 lg:mb-0">
+          <div
+            id="Nota"
+            className="border-2 p-3 rounded-lg shadow-xl w-full max-w-sm border-pink-200 bg-pink-100 lg:ml-0"
+            style={{ marginLeft: '0', marginRight: 'auto' }}
+          >
+            <div className="flex flex-row">
+              <div className="w-1/3 flex flex-col items-center">
+                {!imageError && Data.fotos ? (
+                  <img
+                    src={normalizeImageUrl(Data.fotos)}
+                    alt="Prenda"
+                    crossOrigin="anonymous"
+                    className="rounded-lg w-full max-h-28 object-contain"
+                    onError={handleImageError}
+                  />
+                ) : (
+                  <div className="w-full h-28 bg-pink-200 flex items-center justify-center rounded-lg">
+                    <span className="text-pink-600 text-xs">Sin imagen</span>
                   </div>
-                ))}
+                )}
+                <img src={logo} alt="Logo" className="w-6 h-6 mt-1" crossOrigin="anonymous" />
+              </div>
+
+              <div className="w-2/3 pl-2">
+                <p className="font-bold text-center text-pink-700 text-sm mb-1">{Data.cliente}</p>
+                <p className="text-center text-pink-700 text-xs mb-1">{Data.prenda}</p>
+                <p className="text-pink-600 font-bold text-xs mb-1">Estado: {estatus}</p>
+                <div className="flex justify-between mb-1">
+                  <span className="text-pink-600 text-xs">{Data.talla}</span>
+                  <span className="text-pink-600 text-xs">{Data.color}</span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-1 mb-2">
+                  <div>
+                    <p className="text-pink-600 text-xs">Precio:</p>
+                    <p className="text-pink-600 text-xs">
+                      ${Data.precioOriginal ?? Data.precio}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-pink-600 text-xs">Final:</p>
+                    <p className="text-pink-600 font-bold text-xs">${Data.precio}</p>
+                  </div>
+                  <div>
+                    <p className="text-pink-600 text-xs">Restante:</p>
+                    <p className="text-pink-400 font-bold text-xs">
+                      ${Number(Data.precio) - Number(Data.pago)}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="font-bold text-center text-pink-600 text-xs mb-1">Pagos</p>
+                  {Data.pagos?.map((pago, index) => (
+                    <div key={index} className="flex justify-between">
+                      <span className="text-pink-600 text-xs">{pago.fecha}</span>
+                      <span className="text-pink-600 text-xs">${pago.monto}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="w-full flex justify-center mt-4">
-          <form onSubmit={handleSubmit} className="border-2 p-4 rounded-lg border-pink-200 w-full max-w-sm bg-white">
+        {/* FORMULARIO A LA DERECHA */}
+        <div className="lg:w-1/2 flex justify-center lg:justify-end">
+          <form onSubmit={handleSubmit} className="border-2 p-4 rounded-lg border-pink-200 w-full max-w-sm bg-white lg:mr-0">
             <div className="mb-3">
               <label className="block text-pink-800 font-bold mb-1">Fecha de pago</label>
               <input

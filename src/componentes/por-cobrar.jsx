@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 
 
 function PorCobrar() {
+  const [busqueda, setBusqueda] = useState("");
   const [menuAbierto, setmenuAbierto] = useState(false);
   const [menuAñadir, setmenuAñadir] = useState(false);
   const [pedidos, setPedidos] = useState([]);
@@ -41,6 +42,9 @@ function PorCobrar() {
     setSuma(sumaTotal);
   }, [pedidos]);
 
+  // Filtrar clientes según la búsqueda
+
+
   const pedidosAgrupados = pedidos.reduce((acumulado, pedido)=>{
     if(!acumulado[pedido.cliente]){
       acumulado[pedido.cliente]=[];
@@ -48,6 +52,10 @@ function PorCobrar() {
     acumulado[pedido.cliente].push(pedido);
     return acumulado;
   }, {})
+
+  const clientesFiltrados = Object.keys(pedidosAgrupados).filter(cliente => 
+  cliente.toLowerCase().includes(busqueda)
+);
 
 
   const manejadorMenu = () => {
@@ -64,6 +72,10 @@ function PorCobrar() {
   const handleAgregarPago = (id) => {
     navigate(`/AgregarPago/${id}`);  // Redirige a la página de detalles
   };
+
+  const handleBusquedaChange = (e) => {
+  setBusqueda(e.target.value.toLowerCase());
+};
 
     
   
@@ -84,9 +96,19 @@ function PorCobrar() {
           <p className="font-bold text-2xl text-pink-600">Total por recuperar:</p>
           <p className="ml-3 font-bold text-2xl text-pink-600">${suma}</p>
         </div>
+        {/* Barra de búsqueda */}
+<div className="flex justify-start my-4 px-5">
+  <input
+    type="text"
+    placeholder="🔍 Buscar cliente..."
+    value={busqueda}
+    onChange={handleBusquedaChange}
+    className="w-full max-w-md p-2 border-2 border-biege rounded-lg focus:outline-none focus:border-pink-400"
+  />
+</div>
 
         <div className="productos-container bg-pink-100 mx-5 mb-5 space-y-5">
-  {Object.keys(pedidosAgrupados).map((cliente) => {
+  {clientesFiltrados.map((cliente) => {
     // Sumar los costos de los pedidos de este proveedor
     const sumaCliente = pedidosAgrupados[cliente].reduce((total, pedido) => total + (pedido.precio - pedido.pago), 0);
 
