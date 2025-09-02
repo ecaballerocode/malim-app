@@ -3,10 +3,11 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import Header from "./header";
 import Footer from "./footer";
-import { doc, updateDoc, getDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../credenciales";
 
 function EditarCliente() {
+  
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -52,6 +53,20 @@ function EditarCliente() {
     }
   };
 
+  const handleDelete = async () => {
+      const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar este cliente?");
+      if (!confirmDelete) return;
+      try {
+        // Eliminar el documento de Firebase
+        await deleteDoc(doc(db, "clientes", id));
+        alert("Cliente eliminado con exito");
+        navigate("/Clientes"); // Redirige al usuario a la página principal o lista
+      } catch (error) {
+        console.error("Error al eliminar el pedido:", error);
+        alert("Hubo un error al eliminar el pedido");
+      }
+    };
+
   return (
     <div className="min-h-screen bg-pink-100">
       <Header />
@@ -83,9 +98,15 @@ function EditarCliente() {
           />
           <button
             onClick={handleGuardar}
-            className="w-full bg-pink-500 text-white py-2 rounded-lg hover:bg-pink-600"
+            className="w-full bg-pink-400 text-white py-2 rounded-lg hover:bg-pink-600"
           >
             Guardar Cambios
+          </button>
+          <button
+            onClick={handleDelete}
+            className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-pink-600"
+          >
+            Eliminar cliente
           </button>
         </div>
       </main>

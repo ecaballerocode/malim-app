@@ -106,6 +106,7 @@ function AgregarPago() {
             fotos: data.fotos || [],
             cliente: data.cliente || "",
             fecha: data.fecha || "",
+            fechaEntrega: data.fechaEntrega || "",
             color: data.color || "",
             pago: data.pago || 0,
             lugar: data.lugar || "",
@@ -115,11 +116,14 @@ function AgregarPago() {
             pagos: data.pagos || [],
           });
 
-          if (data.entregado) {
+          if (data.entregado && data.fechaEntrega) {
+            setEstatus("Pedido entregado el " + data.fechaEntrega);
+          } else if (data.entregado) {
             setEstatus("Pedido entregado");
           } else {
             setEstatus("Entrega pendiente");
           }
+
         }
       } catch (error) {
         console.error("Error al obtener la prenda:", error);
@@ -335,7 +339,7 @@ function AgregarPago() {
               <div className="w-2/3 pl-2">
                 <p className="font-bold text-center text-pink-700 text-sm mb-1">{Data.cliente}</p>
                 <p className="text-center text-pink-700 text-xs mb-1">{Data.prenda}</p>
-                <p className="text-pink-600 font-bold text-xs mb-1">Estado: {estatus}</p>
+                <p className="text-pink-600 text-xs mb-1">Estado: {estatus}</p>
                 <div className="flex justify-between mb-1">
                   <span className="text-pink-600 text-xs">{Data.talla}</span>
                   <span className="text-pink-600 text-xs">{Data.color}</span>

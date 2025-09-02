@@ -7,12 +7,12 @@ import { db } from "../credenciales";
 import { collection, getDocs } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 
-
 function Clientes() {
   const [menuAbierto, setmenuAbierto] = useState(false);
   const [menuAñadir, setmenuAñadir] = useState(false);
   const [clientes, setClientes] = useState([]);
   const [busqueda, setBusqueda] = useState("");
+  const [mesFiltro, setMesFiltro] = useState(""); // nuevo estado para el filtro de mes
 
   const navigate = useNavigate();
 
@@ -44,12 +44,17 @@ function Clientes() {
     navigate(`/EditarCliente/${cliente.id}`, { state: { cliente } });
   };
 
-  // Filtrado en tiempo real
-  const clientesFiltrados = clientes.filter((cliente) =>
-    `${cliente.cliente} ${cliente.telefono} ${cliente.cumpleaños}`
+  // Filtrado en tiempo real con búsqueda + filtro de mes
+  const clientesFiltrados = clientes.filter((cliente) => {
+    const cumple = cliente.cumpleaños || ""; // puede venir vacío
+    const cumpleMes = cumple.split("-")[1]; // asumiendo formato DD/MM/YYYY
+    const coincideBusqueda = `${cliente.cliente} ${cliente.telefono} ${cumple}`
       .toLowerCase()
-      .includes(busqueda.toLowerCase())
-  );
+      .includes(busqueda.toLowerCase());
+    const coincideMes = !mesFiltro || cumpleMes === mesFiltro;
+
+    return coincideBusqueda && coincideMes;
+  });
 
   return (
     <div className="min-h-screen bg-pink-100">
@@ -65,19 +70,40 @@ function Clientes() {
 
       <main className="pb-16 pt-24 px-4">
         {/* Input de búsqueda */}
-        <div className="mb-4">
+        <div className="mb-4 flex flex-col lg:flex-row gap-2">
           <input
             type="text"
             placeholder="Buscar cliente, teléfono o cumpleaños..."
-            className="w-full px-4 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
+            className="flex-1 px-4 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
           />
+
+          {/* Filtro por mes */}
+          <select
+            className="px-4 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
+            value={mesFiltro}
+            onChange={(e) => setMesFiltro(e.target.value)}
+          >
+            <option value="">Todos los meses</option>
+            <option value="01">Enero</option>
+            <option value="02">Febrero</option>
+            <option value="03">Marzo</option>
+            <option value="04">Abril</option>
+            <option value="05">Mayo</option>
+            <option value="06">Junio</option>
+            <option value="07">Julio</option>
+            <option value="08">Agosto</option>
+            <option value="09">Septiembre</option>
+            <option value="10">Octubre</option>
+            <option value="11">Noviembre</option>
+            <option value="12">Diciembre</option>
+          </select>
         </div>
 
         <div className="shadow-md rounded-lg overflow-hidden">
           {/* Encabezado */}
-          <div className="grid grid-cols-3 bg-pink-300 text-white font-semibold text-center py-2">
+          <div className="grid grid-cols-3 bg-pink-400 text-white font-semibold text-center py-2">
             <div>Cliente</div>
             <div>Teléfono</div>
             <div>Cumpleaños</div>

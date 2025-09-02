@@ -99,14 +99,14 @@ console.log("Hola")
     };
   
     // Sumar los montos de los pagos filtrados
-    return filtrarPagos().reduce((suma, pago) => suma + pago.monto, 0);
+    return filtrarPagos().reduce((suma, pago) => suma + Number(pago.monto), 0);
   };
   
 
   //Calcular la inversion del periodo seleccionado
   const inversionPeriodo = () => {
     const filtroPagado = filtrarPedidos().filter(pedido => pedido.pagado || pedido.comprado);
-    return filtroPagado.reduce((total, pedido) => total + pedido.costo, 0);
+    return filtroPagado.reduce((total, pedido) => total + Number(pedido.costo), 0);
   }
 
   //Calcular el mejor cliente
@@ -128,8 +128,8 @@ console.log("Hola")
     }
     //Calcular los ingresos totales del mejor cliente
     const filtroMejorCliente = filtroClienteInventario.filter(cliente => cliente.cliente === clienteMasFrecuente);
-    const ingresos = filtroMejorCliente.reduce((suma, pedido) => suma + pedido.precio, 0);
-    const utilidad = filtroMejorCliente.reduce((suma, pedido) => suma + (pedido.precio - pedido.costo), 0);
+    const ingresos = filtroMejorCliente.reduce((suma, pedido) => suma + Number(pedido.precio), 0);
+    const utilidad = filtroMejorCliente.reduce((suma, pedido) => suma + (Number(pedido.precio) - Number(pedido.costo)), 0);
 
     //Contar la cantidad de propiedades del objeto que contiene a los clientes
     const cantidadClientes = Object.keys(clienteConteo);
@@ -141,15 +141,15 @@ console.log("Hola")
   //Funcion para estadisticas de inventario
   const inventarioFunction = () => {
     const filtro = pedidos.filter(pedido => pedido.cliente === "INVENTARIO");
-    const sumaInventario = filtro.reduce((suma, pedido) => suma + pedido.precio, 0);
-    const sumaInventarioInversion = filtro.reduce((suma, pedido) => suma + pedido.costo, 0);
+    const sumaInventario = filtro.reduce((suma, pedido) => suma + Number(pedido.precio), 0);
+    const sumaInventarioInversion = filtro.reduce((suma, pedido) => suma + Number(pedido.costo), 0);
 
     return { suma: sumaInventario, cantidad: filtro.length, inversion: sumaInventarioInversion }
   }
 
   //Funcion para calcular el precio promedio
   const precioPromedio = () => {
-    const suma = filtrarPedidos().reduce((suma, pedido) => suma + pedido.precio, 0);
+    const suma = filtrarPedidos().reduce((suma, pedido) => suma + Number(pedido.precio), 0);
     return Math.round(suma / filtrarPedidos().length);
   }
 

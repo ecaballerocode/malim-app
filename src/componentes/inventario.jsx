@@ -13,14 +13,15 @@ function Inventario() {
   const [menuAñadir, setmenuAñadir] = useState(false);
   const [prendasDisponibles, setPrendasDisponibles] = useState([]);
   const [suma, setSuma] = useState(0)
+  const [sumaCosto, setSumaCosto] = useState(0)
 
 
   const navigate = useNavigate();  // Hook para navegación
-  
+
   const manejarClickPrenda = (id) => {
     navigate(`/FormVenderInventario/${id}`);  // Redirige a la página de detalles
   };
-  
+
   // Nuevo estado para la barra de búsqueda
   const [busqueda, setBusqueda] = useState("");
   // Función para manejar el estado del menú lateral
@@ -65,10 +66,12 @@ function Inventario() {
     });
   };
 
-  useEffect(()=>{
+  useEffect(() => {
     const filtroPagado = prendasDisponibles.filter(doc => doc.cliente === "INVENTARIO");
-    const sumaTotal = filtroPagado.reduce((suma, doc) => suma + doc.precio, 0);
+    const sumaTotal = filtroPagado.reduce((suma, doc) => suma + Number(doc.precio), 0);
+    const sumaCostoTotal = filtroPagado.reduce((suma, doc) => suma + Number(doc.costo), 0);
     setSuma(sumaTotal);
+    setSumaCosto(sumaCostoTotal);
   }, [prendasDisponibles]);
 
   return (
@@ -87,9 +90,13 @@ function Inventario() {
       </div>
       {/* Contenedor principal */}
       <main className="pb-16 pt-10">
-      <div className="flex flex-row justify-center text-center">
-          <p className="font-bold text-2xl text-pink-600">Total:</p>
+        <div className="flex flex-row justify-center text-center">
+          <p className="font-bold text-2xl text-pink-600">Total venta:</p>
           <p className="ml-3 font-bold text-2xl text-pink-600">${suma}</p>
+        </div>
+        <div className="flex flex-row justify-center text-center">
+          <p className="font-bold text-2xl text-pink-600">Costo total:</p>
+          <p className="ml-3 font-bold text-2xl text-pink-600">${sumaCosto}</p>
         </div>
         {/* Sección de filtros y barra de búsqueda */}
         <div className="flex lg:flex-row flex-col justify-end">
@@ -105,11 +112,11 @@ function Inventario() {
             />
           </div>
         </div>
-        
+
         {/* Renderización de la lista filtrada */}
         <div className="productos-container bg-pink-100 grid grid-cols-2 lg:grid-cols-5 lg:gap-3 gap-3 mx-5 mb-5">
           {filtrarPrendas().map((doc) => (
-            <div key={doc.id} onClick={()=> manejarClickPrenda(doc.id)} className="producto h-auto border-2 rounded-lg shadow-xl border-pink-200">
+            <div key={doc.id} onClick={() => manejarClickPrenda(doc.id)} className="producto h-auto border-2 rounded-lg shadow-xl border-pink-200">
               <div className="lg:h-64 h-40 w-full rounded-lg">
                 {doc.fotos && doc.fotos.length > 0 ? (
                   <img
