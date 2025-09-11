@@ -1,7 +1,7 @@
 import React from "react";
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { doc, getDoc, collection, updateDoc, getDocs, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, collection, updateDoc, getDocs, deleteDoc, where, query } from "firebase/firestore";
 import { db } from "../credenciales";
 import Header from "./header";
 import MenuLateral from "./menu-lateral";
@@ -10,17 +10,176 @@ import MenuAñadir from "./menu-añadir";
 import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 
+// ✅ FUNCIÓN REUTILIZABLE PARA ACTUALIZAR PERFIL DE CLIENTE — ¡CORREGIDA TOTALMENTE!
+const actualizarPerfilPorClienteId = async (clienteId, pedidoIdActual = null) => {
+  try {
+    if (!clienteId) return;
+
+    console.log(`🔄 Actualizando perfil para cliente: ${clienteId}`);
+
+    // ✅ Validar que el cliente exista
+    const clienteRef = doc(db, "clientes", clienteId);
+    const clienteSnap = await getDoc(clienteRef);
+    if (!clienteSnap.exists()) {
+      console.error(`❌ Cliente con ID ${clienteId} no existe.`);
+      return false;
+    }
+
+    // ✅ Calcular fecha de hace 1 año como string (YYYY-MM-DD)
+    const unAnioAtras = new Date();
+    unAnioAtras.setFullYear(unAnioAtras.getFullYear() - 1);
+    const unAnioAtrasStr = unAnioAtras.toISOString().split('T')[0];
+
+    // ✅ Consultar pedidos del último año
+    const q = await getDocs(
+      query(
+        collection(db, "pedidos"),
+        where("clienteId", "==", clienteId),
+        where("fecha", ">=", unAnioAtrasStr)
+      )
+    );
+
+    let pedidos = q.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        fecha: new Date(data.fecha)
+      };
+    });
+
+    // ✅ NUEVA LÓGICA: Manejar inclusión/exclusión según existencia del pedido
+    if (pedidoIdActual) {
+      const pedidoRef = doc(db, "pedidos", pedidoIdActual);
+      const pedidoSnap = await getDoc(pedidoRef);
+
+      if (pedidoSnap.exists()) {
+        // Pedido existe → asegurar inclusión
+        if (!pedidos.some(p => p.id === pedidoIdActual)) {
+          console.warn(`⚠️ Pedido ${pedidoIdActual} no encontrado en consulta. Forzando inclusión.`);
+          const data = pedidoSnap.data();
+          const pedidoForzado = {
+            id: pedidoSnap.id,
+            ...data,
+            fecha: new Date(data.fecha)
+          };
+          const fechaLimite = new Date(unAnioAtrasStr);
+          if (pedidoForzado.fecha >= fechaLimite) {
+            pedidos.push(pedidoForzado);
+            console.log(`✅ Pedido ${pedidoIdActual} incluido manualmente.`);
+          } else {
+            console.log(`📅 Pedido ${pedidoIdActual} está fuera del rango de 12 meses.`);
+          }
+        }
+      } else {
+        // ✅ Pedido NO existe (fue eliminado) → asegurar exclusión
+        const indice = pedidos.findIndex(p => p.id === pedidoIdActual);
+        if (indice !== -1) {
+          pedidos.splice(indice, 1);
+          console.log(`🗑️ Pedido ${pedidoIdActual} eliminado de los cálculos.`);
+        }
+      }
+    }
+
+    console.log(`📅 Pedidos encontrados: ${pedidos.length}`);
+
+    // ✅ CASO 1: No hay pedidos → perfil "sin actividad"
+    if (pedidos.length === 0) {
+      await updateDoc(clienteRef, {
+        perfil_recomendacion: {
+          sin_actividad: true,
+          actualizado_en: new Date() // ← Timestamp
+        }
+      }, { merge: true }); // ← ¡CLAVE! No borrar otros campos
+
+      console.log(`✅ Perfil actualizado como 'sin actividad' para cliente ${clienteId}`);
+      return true;
+    }
+
+    // ✅ CASO 2: Sí hay pedidos → calcular perfil completo
+    const gastoTotal = pedidos.reduce((sum, p) => sum + (p.precio || 0), 0);
+    const gastoPromedio = pedidos.length > 0 ? gastoTotal / pedidos.length : 0;
+
+    const categorias = {};
+    const prendas = {};
+    const colores = {};
+    const tallas = {};
+
+    pedidos.forEach(p => {
+      if (p.categoria) categorias[p.categoria] = (categorias[p.categoria] || 0) + 1;
+      if (p.prenda) prendas[p.prenda] = (prendas[p.prenda] || 0) + 1;
+      if (p.color) colores[p.color] = (colores[p.color] || 0) + 1;
+      if (p.talla) tallas[p.talla] = (tallas[p.talla] || 0) + 1;
+    });
+
+    const topCategorias = Object.entries(categorias).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([n]) => n);
+    const topPrendas = Object.entries(prendas).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([n]) => n);
+    const topColores = Object.entries(colores).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([n]) => n);
+    const topTallas = Object.entries(tallas).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([n]) => n);
+
+    const precios = pedidos.map(p => p.precio).filter(p => p != null);
+    const precioMin = precios.length > 0 ? Math.min(...precios) : 0;
+    const precioMax = precios.length > 0 ? Math.max(...precios) : 0;
+
+    const ultimaCompraDoc = pedidos.reduce((latest, p) => p.fecha > latest.fecha ? p : latest, pedidos[0]);
+    const ultimaCompra = ultimaCompraDoc.fecha;
+    const diasDesdeUltimaCompra = Math.floor((new Date() - ultimaCompra) / (1000 * 60 * 60 * 24));
+
+    let tipoCliente = "nuevo";
+    if (pedidos.length >= 8) tipoCliente = "vip";
+    else if (pedidos.length >= 4) tipoCliente = "frecuente";
+    else if (diasDesdeUltimaCompra > 60) tipoCliente = "inactivo";
+
+    let presupuesto = "bajo";
+    if (gastoPromedio > 800) presupuesto = "alto";
+    else if (gastoPromedio > 400) presupuesto = "medio";
+
+    const variedadColores = Object.keys(colores).length;
+    const estiloCompra = variedadColores > 3 ? "aventurero" : "conservador";
+
+    // ✅ Construir objeto COMPLETO de perfil
+    const nuevoPerfil = {
+      total_pedidos_12m: pedidos.length,
+      gasto_promedio_por_compra: parseFloat(gastoPromedio.toFixed(2)),
+      frecuencia_compra_mensual: parseFloat((pedidos.length / 12).toFixed(2)),
+      ultima_compra: ultimaCompra.toISOString().split('T')[0],
+      dias_desde_ultima_compra: diasDesdeUltimaCompra,
+      tipo_cliente: tipoCliente,
+      presupuesto_estimado: presupuesto,
+      categorias_favoritas: topCategorias,
+      prendas_mas_compradas: topPrendas,
+      colores_favoritos: topColores,
+      tallas_mas_usadas: topTallas,
+      rango_precio_min: precioMin,
+      rango_precio_max: precioMax,
+      estilo_compra: estiloCompra,
+      variedad_colores: variedadColores,
+      actualizado_en: new Date(), // ← Timestamp
+      periodo_analisis: "12_meses",
+      sin_actividad: false // ← ¡IMPORTANTE! Si tiene pedidos, NO está inactivo
+    };
+
+    // ✅ SOBREESCRIBIR COMPLETAMENTE perfil_recomendacion (pero sin borrar otros campos del cliente)
+    await updateDoc(clienteRef, {
+      perfil_recomendacion: nuevoPerfil
+    }, { merge: true }); // ← ¡SIEMPRE merge: true!
+
+    console.log(`✅ Perfil actualizado correctamente para cliente ${clienteId}`);
+    return true;
+
+  } catch (error) {
+    console.error("🔥 Error actualizando perfil:", error);
+    return false;
+  }
+};
 
 function ModificarPedido() {
-
   const navigate = useNavigate();
-
   const [menuAbierto, setmenuAbierto] = useState(false);
   const [menuAñadir, setmenuAñadir] = useState(false);
   const [clientes, setClientes] = useState([]);
   const [fecha, setFecha] = useState("");
-
-  const { id } = useParams(); // Obtiene el ID de la prenda desde la URL
+  const { id } = useParams();
 
   const ClientesOptions = clientes.map((cliente) => ({
     value: cliente.id,
@@ -45,12 +204,13 @@ function ModificarPedido() {
     lugar: "",
     entrega: "",
     comprado: false,
-    entregado: false
+    entregado: false,
+    clienteIdOriginal: null // ← almacenamos el clienteId original
   });
 
   const lugares = [
     "Tlalmanalco", "San Rafael", "Ameca", "CDMX", "Chalco", "Ixtapaluca", "Miraflores", "Chihuahua", "Interior"
-  ]
+  ];
 
   const tallas = [
     "(Inf 2-4)", "(Inf 4-6)", "(Inf 8-10)", "(Inf 10-12)", "(Inf 6-8)", "(Inf 10-12)", "(juv 14-16)", "(XS 3-5)", "(28-30)", "(30-32)", "(30-34)",
@@ -59,7 +219,7 @@ function ModificarPedido() {
     "(32)", "(34)", "(36)", "(38)", "(40)", "(42)"
   ];
 
-  const formaEntrega = ["Punto de venta", "A domicilio"]
+  const formaEntrega = ["Punto de venta", "A domicilio"];
 
   const tallaOptions = tallas.map((talla) => ({
     value: talla,
@@ -76,7 +236,6 @@ function ModificarPedido() {
     label: lugar,
   }));
 
-
   const manejadorMenu = () => {
     setmenuAbierto(!menuAbierto);
   };
@@ -88,7 +247,7 @@ function ModificarPedido() {
   const manejadorFecha = (e) => {
     const nuevaFecha = e.target.value;
     setFecha(nuevaFecha);
-    setData({ ...Data, fecha: nuevaFecha })
+    setData({ ...Data, fecha: nuevaFecha });
   };
 
   useEffect(() => {
@@ -117,7 +276,8 @@ function ModificarPedido() {
             lugar: data.lugar ? { value: data.lugar, label: data.lugar } : null,
             entrega: data.entrega ? { value: data.entrega, label: data.entrega } : null,
             comprado: data.comprado,
-            entregado: data.entregado
+            entregado: data.entregado,
+            clienteIdOriginal: data.clienteId // ← guardamos el clienteId original
           });
         }
       } catch (error) {
@@ -143,7 +303,6 @@ function ModificarPedido() {
     fetchClientes();
   }, []);
 
-  //Funcion para volver a renderizar el formulario cuando se envian los datos
   const fetchNewPrenda = async () => {
     try {
       const prendaRef = doc(db, "pedidos", id);
@@ -169,14 +328,14 @@ function ModificarPedido() {
           lugar: "",
           entrega: "",
           comprado: false,
-          entregado: false
+          entregado: false,
+          clienteIdOriginal: data.clienteId
         });
       }
     } catch (error) {
       console.error("Error al obtener la prenda:", error);
     }
   };
-
 
   const handleClienteChange = (selectedOption) => {
     setData({ ...Data, cliente: selectedOption });
@@ -200,50 +359,81 @@ function ModificarPedido() {
   };
 
   const handleComprado = () => {
-    setData({ ...Data, comprado: !Data.comprado })
+    setData({ ...Data, comprado: !Data.comprado });
   };
 
   const handleEntregado = () => {
-    setData({ ...Data, entregado: !Data.entregado })
+    setData({ ...Data, entregado: !Data.entregado });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    const clienteIdOriginal = Data.clienteIdOriginal;
+    const nuevoClienteId = Data.cliente?.value;
+
+    // ✅ Validación adicional
+    if (!nuevoClienteId) {
+      alert("Por favor, selecciona un cliente.");
+      return;
+    }
+
     const dataToSubmit = {
       ...Data,
       cliente: Data.cliente?.label || "",
+      clienteId: nuevoClienteId,
       lugar: Data.lugar?.label || "",
       entrega: Data.entrega?.label || "",
       talla: Data.talla?.label || "",
       pago: Number(Data.pago),
-      comprado: !!Data.comprado, // Asegurar booleano
+      comprado: !!Data.comprado,
       entregado: !!Data.entregado,
       fechaEntrega: Data.fechaEntrega || ""
     };
 
     try {
+      // 1. Guardar el pedido
       await updateDoc(doc(db, "pedidos", id), dataToSubmit);
       alert("Pedido actualizado con éxito.");
 
-      fetchNewPrenda();
-      setFecha("");
+      // 2. Actualizar perfiles — PASANDO EL ID DEL PEDIDO
+      if (clienteIdOriginal && clienteIdOriginal !== nuevoClienteId) {
+        console.log(`🔄 Actualizando perfil del cliente original: ${clienteIdOriginal}`);
+        await actualizarPerfilPorClienteId(clienteIdOriginal, id);
+      }
+
+      if (nuevoClienteId) {
+        console.log(`🔄 Actualizando perfil del nuevo cliente: ${nuevoClienteId}`);
+        await actualizarPerfilPorClienteId(nuevoClienteId, id);
+      }
 
     } catch (error) {
-      alert("Hubo un error al agregar el pedido.");
-      console.error("Error al agregar el pedido:", error);
+      alert("Hubo un error al actualizar el pedido.");
+      console.error("Error al actualizar el pedido:", error);
     }
   };
 
-
+  // ✅ handleDelete ACTUALIZADO
   const handleDelete = async () => {
     const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar este pedido?");
     if (!confirmDelete) return;
+
     try {
-      // Eliminar el documento de Firebase
-      await deleteDoc(doc(db, "pedidos", id));
-      alert("Pedido eliminado con exito");
-      navigate("/Pedidos"); // Redirige al usuario a la página principal o lista
+      const pedidoRef = doc(db, "pedidos", id);
+      const pedidoDoc = await getDoc(pedidoRef);
+      const clienteId = pedidoDoc.data()?.clienteId;
+
+      // Eliminamos el pedido
+      await deleteDoc(pedidoRef);
+      alert("Pedido eliminado con éxito");
+
+      // ✅ ACTUALIZAR PERFIL DEL CLIENTE — PASANDO EL ID DEL PEDIDO ELIMINADO
+      if (clienteId) {
+        console.log(`🗑️ Actualizando perfil tras eliminar pedido ${id} del cliente ${clienteId}`);
+        await actualizarPerfilPorClienteId(clienteId, id);
+      }
+
+      navigate("/Pedidos");
     } catch (error) {
       console.error("Error al eliminar el pedido:", error);
       alert("Hubo un error al eliminar el pedido");
@@ -251,7 +441,7 @@ function ModificarPedido() {
   };
 
   const handleNota = (id) => {
-    navigate(`/AgregarPago/${id}`);  // Redirige a la página de notas
+    navigate(`/AgregarPago/${id}`);
   };
 
   return (
@@ -268,12 +458,9 @@ function ModificarPedido() {
       </div>
       <main className="pb-16 pt-10 flex lg:flex-row justify-between flex-col">
         <div className="h-96 border-2 p-5 rounded-lg shadow-xl border-pink-200 w-full lg:w-auto lg:m-10 flex justify-center">
-
           <div className="w-2/3 h-auto mx-auto flex justify-center">
             <img src={Data.fotos} alt={`Prenda`} className="w-auto h-auto rounded-lg" />
           </div>
-
-
           <div className="ml-5 mt-10">
             <p className="mb-5 font-bold text-lg text-pink-700 m-2">{Data.prenda}</p>
             <p className="text-pink-600 m-2">{Data.proveedor}</p>
@@ -303,7 +490,6 @@ function ModificarPedido() {
               placeholder="Fecha de entrega"
             />
           </div>
-
           <div className="flex flex-col pt-2">
             <label className="px-2 text-pink-800 font-bold">Cliente:</label>
             <Select
@@ -387,7 +573,6 @@ function ModificarPedido() {
                 Actualizar
               </button>
             </div>
-
             <div className="w-full flex justify-center">
               <button className="h-10 px-4 bg-red-600 w-1/2 mb-5 shadow-xl text-white rounded-md cursor-pointer hover:bg-pink-200"
                 type="button" onClick={handleDelete}>
@@ -399,7 +584,7 @@ function ModificarPedido() {
       </main>
       <Footer manejadorMenuAñadir={manejadorMenuAñadir} />
     </div>
-  )
+  );
 }
 
 export default ModificarPedido;

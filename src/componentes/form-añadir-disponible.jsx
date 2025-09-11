@@ -446,7 +446,7 @@ function FormAñadirDisponible() {
           </div>
 
           <div className="flex flex-col pt-2">
-            <label className="px-2 text-pink-800 font-bold">Detalles:</label>
+            <label className="px-2 text-pink-800 font-bold">Detalles y colores:</label>
             <input
               type="text"
               name="detalles"

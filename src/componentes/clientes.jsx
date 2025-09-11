@@ -12,7 +12,8 @@ function Clientes() {
   const [menuAñadir, setmenuAñadir] = useState(false);
   const [clientes, setClientes] = useState([]);
   const [busqueda, setBusqueda] = useState("");
-  const [mesFiltro, setMesFiltro] = useState(""); // nuevo estado para el filtro de mes
+  const [mesFiltro, setMesFiltro] = useState("");
+  const [colorFiltro, setColorFiltro] = useState(""); // Nuevo estado para filtro por color
 
   const navigate = useNavigate();
 
@@ -44,16 +45,40 @@ function Clientes() {
     navigate(`/EditarCliente/${cliente.id}`, { state: { cliente } });
   };
 
-  // Filtrado en tiempo real con búsqueda + filtro de mes
+  // Determinar color del puntito según dias_desde_ultima_compra
+  const getColorDot = (dias) => {
+    if (dias === undefined || dias === null) return "bg-red-500";
+    if (dias < 21) return "bg-green-500";
+    if (dias <= 35) return "bg-yellow-500";
+    if (dias <= 63) return "bg-orange-500";
+    return "bg-red-500";
+  };
+
+  // Obtener la categoría de color para filtrar
+  const getColorCategory = (dias) => {
+    if (dias === undefined || dias === null) return "rojo";
+    if (dias < 21) return "verde";
+    if (dias <= 35) return "amarillo";
+    if (dias <= 63) return "naranja";
+    return "rojo";
+  };
+
+  // Filtrado en tiempo real con búsqueda + filtro de mes + filtro por color
   const clientesFiltrados = clientes.filter((cliente) => {
-    const cumple = cliente.cumpleaños || ""; // puede venir vacío
-    const cumpleMes = cumple.split("-")[1]; // asumiendo formato DD/MM/YYYY
-    const coincideBusqueda = `${cliente.cliente} ${cliente.telefono} ${cumple}`
+    const cumple = cliente.cumpleaños || "";
+    const cumpleMes = cumple.split("-")[1]; // asumiendo formato DD-MM-YYYY
+    const perfil = cliente.perfil_recomendacion || {};
+    const tipoCliente = perfil.tipo_cliente || "";
+    const diasDesdeUltimaCompra = perfil.dias_desde_ultima_compra;
+    const colorCategoria = getColorCategory(diasDesdeUltimaCompra);
+
+    const coincideBusqueda = `${cliente.cliente} ${tipoCliente} ${cumple}`
       .toLowerCase()
       .includes(busqueda.toLowerCase());
     const coincideMes = !mesFiltro || cumpleMes === mesFiltro;
+    const coincideColor = !colorFiltro || colorCategoria === colorFiltro;
 
-    return coincideBusqueda && coincideMes;
+    return coincideBusqueda && coincideMes && coincideColor;
   });
 
   return (
@@ -73,7 +98,7 @@ function Clientes() {
         <div className="mb-4 flex flex-col lg:flex-row gap-2">
           <input
             type="text"
-            placeholder="Buscar cliente, teléfono o cumpleaños..."
+            placeholder="Buscar cliente, tipo de cliente o cumpleaños..."
             className="flex-1 px-4 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
@@ -99,30 +124,53 @@ function Clientes() {
             <option value="11">Noviembre</option>
             <option value="12">Diciembre</option>
           </select>
+
+          {/* Filtro por color */}
+          <select
+            className="px-4 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400"
+            value={colorFiltro}
+            onChange={(e) => setColorFiltro(e.target.value)}
+          >
+            <option value="">Todos los colores</option>
+            <option value="verde">🟢 Verde (últimos 21 días)</option>
+            <option value="amarillo">🟡 Amarillo (22 a 35 días)</option>
+            <option value="naranja">🟠 Naranja (5 a 9 semanas)</option>
+            <option value="rojo">🔴 Rojo (más de 9 semanas o sin dato)</option>
+          </select>
         </div>
 
         <div className="shadow-md rounded-lg overflow-hidden">
           {/* Encabezado */}
           <div className="grid grid-cols-3 bg-pink-400 text-white font-semibold text-center py-2">
             <div>Cliente</div>
-            <div>Teléfono</div>
+            <div>Tipo de cliente</div>
             <div>Cumpleaños</div>
           </div>
 
           {/* Filas filtradas */}
-          {clientesFiltrados.map((doc, index) => (
-            <div
-              key={doc.id}
-              onClick={() => handleFilaClick(doc)}
-              className={`grid grid-cols-3 text-center py-2 cursor-pointer transition hover:bg-pink-200 ${
-                index % 2 === 0 ? "bg-pink-50" : "bg-pink-100"
-              }`}
-            >
-              <div>{doc.cliente}</div>
-              <div>{doc.telefono}</div>
-              <div>{doc.cumpleaños}</div>
-            </div>
-          ))}
+          {clientesFiltrados.map((doc, index) => {
+            const perfil = doc.perfil_recomendacion || {};
+            const tipoCliente = perfil.tipo_cliente || "—";
+            const diasDesdeUltimaCompra = perfil.dias_desde_ultima_compra;
+            const colorDot = getColorDot(diasDesdeUltimaCompra);
+
+            return (
+              <div
+                key={doc.id}
+                onClick={() => handleFilaClick(doc)}
+                className={`grid grid-cols-3 text-center py-2 cursor-pointer transition hover:bg-pink-200 ${
+                  index % 2 === 0 ? "bg-pink-50" : "bg-pink-100"
+                }`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <span className={`w-3 h-3 rounded-full ${colorDot}`}></span>
+                  {doc.cliente}
+                </div>
+                <div>{tipoCliente}</div>
+                <div>{doc.cumpleaños || "—"}</div>
+              </div>
+            );
+          })}
 
           {/* Mensaje si no hay resultados */}
           {clientesFiltrados.length === 0 && (
