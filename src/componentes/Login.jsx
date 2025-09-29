@@ -1,20 +1,31 @@
 // Login.js
 import React, { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../credenciales"; // asegúrate de exportar auth en credenciales.js
+import { auth } from "../credenciales";
+import { useNavigate } from "react-router-dom"; // Importamos el hook de navegación
 
-const Login = ({ onLogin }) => {
+const Login = () => {
+  const navigate = useNavigate(); // Inicializamos la navegación
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(""); // Limpiamos errores anteriores
+
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      onLogin();
+      
+      // La autenticación fue exitosa.
+      // 💡 CORRECCIÓN CLAVE: Forzamos la navegación a la ruta principal ('/')
+      // Esto rompe el bucle de redirección en el navegador.
+      navigate('/'); 
+
     } catch (err) {
+      // Manejo de errores de Firebase
       setError("Correo o contraseña incorrectos");
+      console.error("Error de autenticación:", err.message);
     }
   };
 
@@ -50,6 +61,7 @@ const Login = ({ onLogin }) => {
   );
 };
 
+// --- Estilos ---
 const styles = {
   container: {
     display: "flex",
@@ -101,9 +113,10 @@ const styles = {
   },
 };
 
-// Hover dinámico con inline style
-styles.button[":hover"] = {
-  backgroundColor: "#c0765b",
-};
+// Nota: Los estilos de hover no funcionan con objetos inline, 
+// se mantienen en el código pero deben manejarse con CSS regular o librerías.
+// styles.button[":hover"] = {
+//   backgroundColor: "#c0765b",
+// };
 
 export default Login;
