@@ -33,6 +33,11 @@ function EditarCliente() {
       colores_favoritos: [],
       prendas_mas_compradas: [],
       tallas_mas_usadas: [],
+      satisfaccion_promedio: null,
+      satisfaccion_ultimas_5: null,
+      satisfacciones_recientes: [],
+      preferencia_compra: "",   // precio, estilo, confianza, comodidad
+      preferencia_canal: "",    // facebook, whatsapp, catalogo digital
     },
   });
 
@@ -164,78 +169,78 @@ function EditarCliente() {
 
   // Formatear timestamp de Firebase (maneja Timestamp, Date, string, etc.)
   // formatea cualquier cosa que represente una fecha a una cadena "dd/mm/aaaa"
-const formatDate = (input) => {
-  if (!input) return "—";
+  const formatDate = (input) => {
+    if (!input) return "—";
 
-  // 1) Firestore Timestamp con toDate()
-  if (input?.toDate && typeof input.toDate === "function") {
-    const d = input.toDate();
-    return isNaN(d) ? "—" : d.toLocaleDateString("es-ES");
-  }
+    // 1) Firestore Timestamp con toDate()
+    if (input?.toDate && typeof input.toDate === "function") {
+      const d = input.toDate();
+      return isNaN(d) ? "—" : d.toLocaleDateString("es-ES");
+    }
 
-  // 2) Objeto con seconds / nanoseconds (exportado, JSON, etc.)
-  if (typeof input === "object") {
-    const seconds = input.seconds ?? input._seconds;
-    const nanoseconds = input.nanoseconds ?? input._nanoseconds ?? 0;
-    if (typeof seconds === "number") {
-      const ms = seconds * 1000 + Math.floor(nanoseconds / 1e6);
+    // 2) Objeto con seconds / nanoseconds (exportado, JSON, etc.)
+    if (typeof input === "object") {
+      const seconds = input.seconds ?? input._seconds;
+      const nanoseconds = input.nanoseconds ?? input._nanoseconds ?? 0;
+      if (typeof seconds === "number") {
+        const ms = seconds * 1000 + Math.floor(nanoseconds / 1e6);
+        const d = new Date(ms);
+        return isNaN(d) ? "—" : d.toLocaleDateString("es-ES");
+      }
+    }
+
+    // 3) Instancia Date
+    if (input instanceof Date && !isNaN(input)) {
+      return input.toLocaleDateString("es-ES");
+    }
+
+    // 4) Número: puede ser segundos (10 dígitos) o ms (13 dígitos)
+    if (typeof input === "number" && !isNaN(input)) {
+      let ms = input;
+      if (input < 1e12) ms = input * 1000; // asumimos segundos si es pequeño
       const d = new Date(ms);
       return isNaN(d) ? "—" : d.toLocaleDateString("es-ES");
     }
-  }
 
-  // 3) Instancia Date
-  if (input instanceof Date && !isNaN(input)) {
-    return input.toLocaleDateString("es-ES");
-  }
-
-  // 4) Número: puede ser segundos (10 dígitos) o ms (13 dígitos)
-  if (typeof input === "number" && !isNaN(input)) {
-    let ms = input;
-    if (input < 1e12) ms = input * 1000; // asumimos segundos si es pequeño
-    const d = new Date(ms);
-    return isNaN(d) ? "—" : d.toLocaleDateString("es-ES");
-  }
-
-  // 5) String (ISO u otro formato)
-  if (typeof input === "string") {
-    const d = new Date(input);
-    if (!isNaN(d)) return d.toLocaleDateString("es-ES");
-    return input; // si no es fecha válida devolvemos el string original
-  }
-
-  // Fallback seguro (no devolver [object Object])
-  try {
-    return String(input);
-  } catch {
-    return "—";
-  }
-};
-
-// Normaliza y devuelve la "ultima_compra" posible (Date | Timestamp-like | null)
-const obtenerUltimaCompra = (perfil) => {
-  if (!perfil) return null;
-
-  const raw = perfil.ultima_compra ?? null;
-  // Si ya es Date o Timestamp, devolverlo igual y dejar que formatDate lo procese
-  if (!raw) {
-    // si no hay ultima_compra, pero hay dias_desde_ultima_compra -> calcular fecha
-    if (
-      typeof perfil.dias_desde_ultima_compra === "number" &&
-      !isNaN(perfil.dias_desde_ultima_compra)
-    ) {
-      const hoy = new Date();
-      const fechaCalculada = new Date(hoy);
-      fechaCalculada.setDate(hoy.getDate() - perfil.dias_desde_ultima_compra);
-      return fechaCalculada;
+    // 5) String (ISO u otro formato)
+    if (typeof input === "string") {
+      const d = new Date(input);
+      if (!isNaN(d)) return d.toLocaleDateString("es-ES");
+      return input; // si no es fecha válida devolvemos el string original
     }
-    return null;
-  }
 
-  // Si raw es un objeto con seconds/nanoseconds sin método toDate, devolverlo tal cual:
-  // formatDate lo transformará. Si es Timestamp con toDate, también será correcto.
-  return raw;
-};
+    // Fallback seguro (no devolver [object Object])
+    try {
+      return String(input);
+    } catch {
+      return "—";
+    }
+  };
+
+  // Normaliza y devuelve la "ultima_compra" posible (Date | Timestamp-like | null)
+  const obtenerUltimaCompra = (perfil) => {
+    if (!perfil) return null;
+
+    const raw = perfil.ultima_compra ?? null;
+    // Si ya es Date o Timestamp, devolverlo igual y dejar que formatDate lo procese
+    if (!raw) {
+      // si no hay ultima_compra, pero hay dias_desde_ultima_compra -> calcular fecha
+      if (
+        typeof perfil.dias_desde_ultima_compra === "number" &&
+        !isNaN(perfil.dias_desde_ultima_compra)
+      ) {
+        const hoy = new Date();
+        const fechaCalculada = new Date(hoy);
+        fechaCalculada.setDate(hoy.getDate() - perfil.dias_desde_ultima_compra);
+        return fechaCalculada;
+      }
+      return null;
+    }
+
+    // Si raw es un objeto con seconds/nanoseconds sin método toDate, devolverlo tal cual:
+    // formatDate lo transformará. Si es Timestamp con toDate, también será correcto.
+    return raw;
+  };
 
 
   // Función para calcular prendas recomendadas
@@ -511,6 +516,34 @@ const obtenerUltimaCompra = (perfil) => {
                   placeholder="Tallas más usadas"
                   className="w-full px-4 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-pink-300"
                 />
+                <h4 className="mt-6 font-medium text-gray-700">Encuesta de Preferencias</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                  <select
+                    name="perfil_recomendacion.preferencia_compra"
+                    value={cliente.perfil_recomendacion.preferencia_compra || ""}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-pink-300"
+                  >
+                    <option value="">-- Selecciona preferencia --</option>
+                    <option value="precio">Precio</option>
+                    <option value="estilo">Estilo</option>
+                    <option value="confianza">Confianza</option>
+                    <option value="comodidad">Comodidad</option>
+                  </select>
+
+                  <select
+                    name="perfil_recomendacion.preferencia_canal"
+                    value={cliente.perfil_recomendacion.preferencia_canal || ""}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border rounded-md shadow-sm focus:ring-2 focus:ring-pink-300"
+                  >
+                    <option value="">-- Selecciona canal --</option>
+                    <option value="facebook">Facebook</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="catalogo digital">Catálogo digital</option>
+                  </select>
+                </div>
+
               </div>
             </div>
           ) : (
@@ -638,6 +671,34 @@ const obtenerUltimaCompra = (perfil) => {
                   </div>
                 </div>
               </div>
+              {/* Estadísticas de Satisfacción */}
+              <div className="bg-white rounded-xl shadow-md p-6">
+                <h3 className="text-lg font-bold text-pink-600 mb-4">😊 Satisfacción del Cliente</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                  <div className="bg-pink-50 rounded-lg p-3">
+                    <p className="text-2xl font-bold text-pink-600">
+                      {cliente.perfil_recomendacion?.satisfaccion_promedio ?? "—"}
+                    </p>
+                    <p className="text-xs text-gray-600">Promedio general</p>
+                  </div>
+                  <div className="bg-pink-50 rounded-lg p-3">
+                    <p className="text-2xl font-bold text-pink-600">
+                      {cliente.perfil_recomendacion?.satisfaccion_ultimas_5 ?? "—"}
+                    </p>
+                    <p className="text-xs text-gray-600">Últimas 5 compras</p>
+                  </div>
+                  <div className="bg-pink-50 rounded-lg p-3">
+                    <p className="text-sm text-gray-700">
+                      {Array.isArray(cliente.perfil_recomendacion?.satisfacciones_recientes) &&
+                        cliente.perfil_recomendacion.satisfacciones_recientes.length > 0
+                        ? cliente.perfil_recomendacion.satisfacciones_recientes.join(", ")
+                        : "Sin registros"}
+                    </p>
+                    <p className="text-xs text-gray-600">Satisfacciones recientes</p>
+                  </div>
+                </div>
+              </div>
+
 
               {/* Preferencias */}
               <div className="bg-white rounded-xl shadow-md p-6">
@@ -667,6 +728,19 @@ const obtenerUltimaCompra = (perfil) => {
                       {formatArray(cliente.perfil_recomendacion?.tallas_mas_usadas)}
                     </p>
                   </div>
+                  <div>
+                    <p className="font-medium text-gray-700 mb-1">Preferencia de compra</p>
+                    <p className="bg-pink-50 px-3 py-2 rounded-md text-sm">
+                      {cliente.perfil_recomendacion?.preferencia_compra || "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-700 mb-1">Canal favorito</p>
+                    <p className="bg-pink-50 px-3 py-2 rounded-md text-sm">
+                      {cliente.perfil_recomendacion?.preferencia_canal || "—"}
+                    </p>
+                  </div>
+
                 </div>
               </div>
 

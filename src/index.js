@@ -25,6 +25,7 @@ import Descripciones from "./componentes/Descripciones";
 import Clientes from "./componentes/clientes";
 import EditarCliente from './componentes/editar-cliente';
 import Login from './componentes/Login';
+import FinancialStatementsGenerator from "./componentes/FinancialStatementsGenerator";
 
 
 function Root() {
@@ -91,6 +92,9 @@ function Root() {
                 <Route path='Clientes' element={<Clientes />} />
 
                 <Route path='EditarCliente/:id' element={<EditarCliente />} />
+
+                <Route path='FinancialStatementsGenerator' element={<FinancialStatementsGenerator />} />
+
 
             </Routes>
 

@@ -1,7 +1,7 @@
 import React from "react";
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { doc, getDoc, collection, updateDoc, getDocs, deleteDoc, where, query } from "firebase/firestore";
+import { doc, getDoc, collection, updateDoc, getDocs, deleteDoc, where, query, setDoc } from "firebase/firestore";
 import { db } from "../credenciales";
 import Header from "./header";
 import MenuLateral from "./menu-lateral";
@@ -35,9 +35,11 @@ const actualizarPerfilPorClienteId = async (clienteId, pedidoIdActual = null) =>
       query(
         collection(db, "pedidos"),
         where("clienteId", "==", clienteId),
-        where("fecha", ">=", unAnioAtrasStr)
+        where("fecha", ">=", unAnioAtras) // <-- usando Date en lugar de string
       )
     );
+    // Opciones de satisfacción (1 a 5)
+
 
     let pedidos = q.docs.map(doc => {
       const data = doc.data();
@@ -47,6 +49,37 @@ const actualizarPerfilPorClienteId = async (clienteId, pedidoIdActual = null) =>
         fecha: new Date(data.fecha)
       };
     });
+
+    // ====== Cálculo de satisfacción ======
+    const satisfacciones = pedidos
+      .map(p => Number(p.satisfaccion))
+      .filter(s => !isNaN(s));
+
+    const satisfaccionPromedio =
+  satisfacciones.length > 0
+    ? (satisfacciones.reduce((a, b) => a + b, 0) / satisfacciones.length).toFixed(2)
+    : null;
+
+
+    // Ordenar por fecha para obtener las últimas
+    const pedidosOrdenadosPorFecha = [...pedidos].sort((a, b) => b.fecha - a.fecha);
+
+    const ultimasSatisfacciones = pedidosOrdenadosPorFecha
+  .filter(p => !isNaN(Number(p.satisfaccion))) // solo pedidos con satisfacción
+  .slice(0, 5)
+  .map(p => ({
+    fecha: p.fecha.toISOString().split('T')[0],
+    valor: Number(p.satisfaccion)
+  }));
+
+
+
+    const promedioUltimas = ultimasSatisfacciones.length > 0
+      ? parseFloat((ultimasSatisfacciones.reduce((a, b) => a + b, 0) / ultimasSatisfacciones.length).toFixed(2))
+      : null;
+
+
+
 
     // ✅ NUEVA LÓGICA: Manejar inclusión/exclusión según existencia del pedido
     if (pedidoIdActual) {
@@ -85,7 +118,7 @@ const actualizarPerfilPorClienteId = async (clienteId, pedidoIdActual = null) =>
 
     // ✅ CASO 1: No hay pedidos → perfil "sin actividad"
     if (pedidos.length === 0) {
-      await updateDoc(clienteRef, {
+      await setDoc(clienteRef, {
         perfil_recomendacion: {
           sin_actividad: true,
           actualizado_en: new Date() // ← Timestamp
@@ -156,11 +189,15 @@ const actualizarPerfilPorClienteId = async (clienteId, pedidoIdActual = null) =>
       variedad_colores: variedadColores,
       actualizado_en: new Date(), // ← Timestamp
       periodo_analisis: "12_meses",
-      sin_actividad: false // ← ¡IMPORTANTE! Si tiene pedidos, NO está inactivo
+      sin_actividad: false, // ← ¡IMPORTANTE! Si tiene pedidos, NO está inactivo
+      satisfaccion_promedio: satisfaccionPromedio,
+      satisfaccion_ultimas_5: promedioUltimas,
+      satisfacciones_recientes: ultimasSatisfacciones,
+
     };
 
     // ✅ SOBREESCRIBIR COMPLETAMENTE perfil_recomendacion (pero sin borrar otros campos del cliente)
-    await updateDoc(clienteRef, {
+    await setDoc(clienteRef, {
       perfil_recomendacion: nuevoPerfil
     }, { merge: true }); // ← ¡SIEMPRE merge: true!
 
@@ -180,6 +217,14 @@ function ModificarPedido() {
   const [clientes, setClientes] = useState([]);
   const [fecha, setFecha] = useState("");
   const { id } = useParams();
+
+  const satisfaccionOptions = [
+    { value: 1, label: "1 - Muy insatisfecho" },
+    { value: 2, label: "2 - Insatisfecho" },
+    { value: 3, label: "3 - Neutral" },
+    { value: 4, label: "4 - Satisfecho" },
+    { value: 5, label: "5 - Muy satisfecho" },
+  ];
 
   const ClientesOptions = clientes.map((cliente) => ({
     value: cliente.id,
@@ -205,7 +250,8 @@ function ModificarPedido() {
     entrega: "",
     comprado: false,
     entregado: false,
-    clienteIdOriginal: null // ← almacenamos el clienteId original
+    clienteIdOriginal: null, // ← almacenamos el clienteId original
+    satisfaccion: null
   });
 
   const lugares = [
@@ -277,7 +323,11 @@ function ModificarPedido() {
             entrega: data.entrega ? { value: data.entrega, label: data.entrega } : null,
             comprado: data.comprado,
             entregado: data.entregado,
-            clienteIdOriginal: data.clienteId // ← guardamos el clienteId original
+            clienteIdOriginal: data.clienteId, // ← guardamos el clienteId original
+            satisfaccion: data.satisfaccion
+              ? { value: data.satisfaccion, label: `${data.satisfaccion} - ${["Muy insatisfecho", "Insatisfecho", "Neutral", "Satisfecho", "Muy satisfecho"][data.satisfaccion - 1]}` }
+              : null,
+
           });
         }
       } catch (error) {
@@ -388,7 +438,8 @@ function ModificarPedido() {
       pago: Number(Data.pago),
       comprado: !!Data.comprado,
       entregado: !!Data.entregado,
-      fechaEntrega: Data.fechaEntrega || ""
+      fechaEntrega: Data.fechaEntrega || "",
+      satisfaccion: Data.satisfaccion?.value || null
     };
 
     try {
@@ -548,6 +599,17 @@ function ModificarPedido() {
               />
             </div>
           </div>
+          <div className="flex flex-col pt-2">
+            <label className="px-2 text-pink-800 font-bold">Grado de satisfacción:</label>
+            <Select
+              options={satisfaccionOptions}
+              value={Data.satisfaccion}
+              onChange={(selectedOption) => setData({ ...Data, satisfaccion: selectedOption })}
+              isClearable
+              placeholder="Seleccionar grado"
+            />
+          </div>
+
           <div className="flex flex-row mt-4 mx-10 justify-between">
             <div className="flex flex-col">
               <input type="checkbox" checked={Data.comprado} onChange={handleComprado} />

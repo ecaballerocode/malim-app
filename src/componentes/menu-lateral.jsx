@@ -7,6 +7,7 @@ import { GoPackageDependents } from "react-icons/go";
 import { ImStatsDots } from "react-icons/im";
 import { CiTextAlignLeft } from "react-icons/ci";
 import { FaPerson } from "react-icons/fa6";
+import { MdOutlineAttachMoney } from "react-icons/md";
 
 function MenuLateral({ menuAbierto }) {
   return (
@@ -62,6 +63,12 @@ function MenuLateral({ menuAbierto }) {
           <Link to="/Clientes" className="flex flex-row">
             <FaPerson className="text-xl" />
             <span className="ml-2">Clientes</span>
+          </Link>
+        </button>
+        <button className="text-pink-800">
+          <Link to="/FinancialStatementsGenerator" className="flex flex-row">
+            <MdOutlineAttachMoney className="text-xl" />
+            <span className="ml-2">Contabilidad</span>
           </Link>
         </button>
       </div>
