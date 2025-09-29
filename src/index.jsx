@@ -64,7 +64,7 @@ function Root() {
     // El usuario está logueado, devolvemos la aplicación principal.
     return (
         // Dejamos el Router sin "basename" ya que Vercel usa la raíz.
-        <Router >
+        <Router basename="malim-app">
             <Routes>
                 <Route path='/' element={<App />} />
                 <Route path='Disponible' element={<Disponible />} />
