@@ -245,10 +245,18 @@ function DetallePrenda() {
         // 🔥 EXTRAER EL KEY CORRECTO DE LA URL DE R2
         // Ejemplo de URL: https://pub-123456.r2.dev/uploads/abc123.jpg
         // Queremos solo: "uploads/abc123.jpg"
+        // 🔥 EXTRAER EL KEY CORRECTO DE LA URL DE R2 (más robusto)
         let key = "";
         try {
           const urlObj = new URL(fotoUrl);
           key = urlObj.pathname.substring(1); // Elimina la primera "/"
+          // Si hay query string o fragmento, ignóralos
+          if (key.includes('?')) {
+            key = key.split('?')[0];
+          }
+          if (key.includes('#')) {
+            key = key.split('#')[0];
+          }
         } catch (e) {
           console.error("URL inválida para R2:", fotoUrl);
           alert("❌ Error: URL de imagen inválida para R2");
@@ -433,7 +441,7 @@ function DetallePrenda() {
 
   // 🔥 BOTÓN DE PRUEBA TEMPORAL - BORRA ESTO DESPUÉS
   const pruebaEliminarR2 = async () => {
-    const keyDePrueba = "uploads/abc123.jpg"; // ⚠️ ¡Cambia esto por una key REAL de tu R2!
+    const keyDePrueba = "malim/malim-1759250875382-b5mpsnutm-malim-1759250874557-0-0-malim-1759195445451-zmaxsvacb-malim-1759195444876-0-0-image_14_watermarked.jpeg"; // ⚠️ ¡Cambia esto por una key REAL de tu R2!
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
@@ -514,14 +522,14 @@ function DetallePrenda() {
         </div>
       ) : null}
 
-      
+
 
       <main className="pb-20 flex flex-center justify-center">
         {/* 🔥 BOTÓN DE PRUEBA TEMPORAL - BORRA ESTO DESPUÉS */}
         <button
           type="button"
           onClick={pruebaEliminarR2}
-          className="mt-4 py-2 px-4 bg-yellow-500 text-white rounded-md"
+          className="mt-4 py-2 px-4 bg-blue-500 text-white rounded-md"
         >
           🧪 Probar eliminar de R2
         </button>
