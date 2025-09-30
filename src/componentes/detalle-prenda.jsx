@@ -200,14 +200,12 @@ function DetallePrenda() {
   async function deleteImageFromStorage(url) {
     try {
       alert("Iniciando deleteImageFromStorage");
-
       alert("URL detectada: " + url);
 
-      // 🔥 Extraer todo lo que sigue después de .com/
-      const key = url.split(".com/")[1];
-      alert("Key calculada: " + key);
+      const key = getR2KeyFromUrl(url);
+      if (!key) throw new Error("No se pudo calcular el key");
 
-      const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
+      const response = await fetch("/api/deleteImage", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key }),
@@ -222,13 +220,14 @@ function DetallePrenda() {
         throw new Error(text || "Error desconocido en deleteImage");
       }
 
-      alert("Imagen eliminada con éxito");
+      alert("Imagen eliminada con éxito ✅");
       return true;
     } catch (err) {
       alert("Error en deleteImageFromStorage: " + err.message);
       return false;
     }
   }
+
 
 
 
