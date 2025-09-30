@@ -30,7 +30,8 @@ function DetallePrenda() {
   const [menuAñadir, setmenuAñadir] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
 
-  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app";
+  // 🔥 CORRECCIÓN: Eliminamos los espacios al final de la URL
+  const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app").trim();
 
   const manejadorMenu = () => {
     setmenuAbierto(!menuAbierto);
@@ -106,7 +107,6 @@ function DetallePrenda() {
     fetchProveedores();
   }, [id]);
 
-  // ✅ FUNCIÓN PARA SUBIR UN LOTE DE IMÁGENES (MÁXIMO 2 POR LOTE)
   const uploadImageBatch = async (filesBatch, batchNumber) => {
     try {
       const uploadFormData = new FormData();
@@ -145,11 +145,9 @@ function DetallePrenda() {
     }
   };
 
-  // ✅ FUNCIÓN PRINCIPAL QUE MANEJA LOTES DE MÁXIMO 2 IMÁGENES
   const uploadAllImages = async (files) => {
     if (files.length === 0) return [];
 
-    // Dividir en lotes de máximo 2 imágenes
     const batchSize = 2;
     const batches = [];
     for (let i = 0; i < files.length; i += batchSize) {
@@ -165,7 +163,6 @@ function DetallePrenda() {
         allUrls.push(...batchUrls);
         setUploadProgress({ current: i + 1, total: batches.length });
 
-        // Pequeña pausa entre lotes para no saturar el backend
         if (i < batches.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 800));
         }
@@ -199,9 +196,7 @@ function DetallePrenda() {
 
   const CLOUDINARY_UPLOAD_PRESET = "malimapp";
 
-  // Función auxiliar para eliminar imágenes del storage
-  // Función auxiliar para eliminar imágenes del storage
-  // Función auxiliar para eliminar imágenes del storage - VERSIÓN CORREGIDA
+  // 🔥 FUNCIÓN CORREGIDA PARA ELIMINAR DE R2
   const deleteImageFromStorage = async (fotoUrl) => {
     try {
       if (fotoUrl.includes("res.cloudinary.com")) {
@@ -245,12 +240,29 @@ function DetallePrenda() {
         return true;
 
       } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
-        console.log("Eliminando de R2:", fotoUrl);
+        console.log("Eliminando de R2. URL recibida:", fotoUrl);
 
-        // ✅ CORRECCIÓN: Enviar la URL en el body, no como query parameter
+        // 🔥 EXTRAER EL KEY CORRECTO DE LA URL DE R2
+        // Ejemplo de URL: https://pub-123456.r2.dev/uploads/abc123.jpg
+        // Queremos solo: "uploads/abc123.jpg"
+        let key = "";
+        try {
+          const urlObj = new URL(fotoUrl);
+          key = urlObj.pathname.substring(1); // Elimina la primera "/"
+        } catch (e) {
+          console.error("URL inválida para R2:", fotoUrl);
+          alert("❌ Error: URL de imagen inválida para R2");
+          return false;
+        }
+
+        if (!key) {
+          alert("❌ No se pudo extraer el key de la imagen de R2");
+          return false;
+        }
+
+        console.log("Key extraído para R2:", key);
+
         const backendUrl = `${BACKEND_URL}/api/deleteImage`;
-
-        console.log("Llamando a:", backendUrl);
 
         const response = await fetch(backendUrl, {
           method: "DELETE",
@@ -258,24 +270,24 @@ function DetallePrenda() {
             "Accept": "application/json",
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ key: fotoUrl })
+          body: JSON.stringify({ key: key }) // 🔥 Enviamos SOLO el key, no la URL completa
         });
 
         const result = await response.json();
 
         if (!response.ok) {
           if (response.status === 404) {
-            console.warn("Imagen no encontrada en R2, continuando:", fotoUrl);
+            console.warn("Imagen no encontrada en R2, continuando:", key);
             return true;
           }
           throw new Error(result.error || `Error R2: ${response.status}`);
         }
 
-        if (!result.success && !result.message.includes("no se requiere eliminación")) {
+        if (!result.success) {
           throw new Error(result.error || "Error al eliminar imagen de R2");
         }
 
-        console.log("Imagen de R2 eliminada o no requería eliminación:", fotoUrl, result.message);
+        console.log("✅ Imagen de R2 eliminada con éxito:", key);
         return true;
 
       } else {
@@ -283,13 +295,13 @@ function DetallePrenda() {
         return true;
       }
     } catch (error) {
-      if (error.message.includes("no fue encontrada") ||
-        error.message.includes("not found")) {
+      if (error.message.includes("no fue encontrada") || error.message.includes("not found")) {
         console.warn("Imagen no encontrada, continuando:", fotoUrl);
         return true;
       }
 
       console.error(`Error eliminando imagen ${fotoUrl}:`, error);
+      alert("❌ Error al eliminar imagen: " + error.message);
       throw error;
     }
   };
@@ -302,27 +314,23 @@ function DetallePrenda() {
       setLoading(true);
       console.log("Iniciando eliminación de prenda:", id);
 
-      // Eliminar imágenes del storage con mejor manejo de errores
       const deletePromises = formData.fotos.map(fotoUrl =>
         deleteImageFromStorage(fotoUrl)
           .catch(error => {
-            // Log del error pero continuamos con la eliminación
             console.warn(`Error eliminando imagen ${fotoUrl}:`, error.message);
-            return true; // Consideramos éxito para continuar
+            return true;
           })
       );
 
       await Promise.all(deletePromises);
-
-      // Eliminar documento de Firestore
       await deleteDoc(doc(db, "disponible", id));
 
-      alert("Prenda eliminada con éxito");
+      alert("✅ Prenda eliminada con éxito");
       navigate("/Disponible");
 
     } catch (error) {
       console.error("Error general al eliminar la prenda:", error);
-      alert("Error al eliminar la prenda: " + error.message);
+      alert("❌ Error al eliminar la prenda: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -334,22 +342,19 @@ function DetallePrenda() {
 
     try {
       setLoading(true);
-
-      // Eliminar del storage
       await deleteImageFromStorage(fotoUrl);
 
-      // Quitar del array de fotos en Firebase
       const nuevasFotos = formData.fotos.filter((foto) => foto !== fotoUrl);
       setFormData({ ...formData, fotos: nuevasFotos });
 
       const prendaRef = doc(db, "disponible", id);
       await updateDoc(prendaRef, { fotos: nuevasFotos });
 
-      alert("Imagen eliminada con éxito");
+      alert("✅ Imagen eliminada con éxito");
 
     } catch (error) {
       console.error("Error al eliminar imagen individual:", error);
-      alert("Error al eliminar la imagen: " + error.message);
+      alert("❌ Error al eliminar la imagen: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -380,12 +385,10 @@ function DetallePrenda() {
     window.open(url, "_blank");
   };
 
-  // ✅ SUBIR NUEVAS IMÁGENES CON SISTEMA DE LOTES
   const handleFileChange = async (e) => {
     const files = [...e.target.files];
     if (!files.length) return;
 
-    // Validaciones
     if (files.length > 10) {
       alert("⚠️ Máximo 10 imágenes por vez");
       return;
@@ -399,15 +402,10 @@ function DetallePrenda() {
 
     try {
       setLoading(true);
-
-      // Subir imágenes usando el sistema de lotes
       const uploadedUrls = await uploadAllImages(files);
-
-      // Agregar nuevas imágenes al array existente
       const nuevasFotos = [...formData.fotos, ...uploadedUrls];
       setFormData({ ...formData, fotos: nuevasFotos });
 
-      // Guardar en Firestore
       const prendaRef = doc(db, "disponible", id);
       await updateDoc(prendaRef, { fotos: nuevasFotos });
 
@@ -450,7 +448,6 @@ function DetallePrenda() {
         <MenuAñadir menuAñadir={menuAñadir} />
       </div>
 
-      {/* INDICADOR DE PROGRESO DE SUBIDA */}
       {uploadProgress.total > 0 && (
         <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-white p-4 rounded-lg shadow-lg z-50">
           <p className="text-sm font-medium mb-2">
@@ -465,7 +462,6 @@ function DetallePrenda() {
         </div>
       )}
 
-      {/* Carrusel de imágenes */}
       {formData.fotos.length > 1 ? (
         <Slider {...settings} className="w-64 pt-12 mb-5 mx-auto">
           {formData.fotos.map((foto, index) => (
@@ -495,7 +491,6 @@ function DetallePrenda() {
         </div>
       ) : null}
 
-      {/* Formulario de edición */}
       <main className="pb-20 flex flex-center justify-center">
         <form onSubmit={handleSubmit} className="lg:border-2 lg:shadow-xl px-5 lg:py-2 pb-20 mt-2 rounded-lg border-pink-200 max-w-lg w-full">
           <div className="flex flex-col justify-center my-3">
