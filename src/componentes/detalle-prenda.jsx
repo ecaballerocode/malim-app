@@ -375,59 +375,43 @@ async function deleteImageFromStorage(url) {
   const tallaOptions = tallas.map((talla) => ({ value: talla, label: talla }));
 
   // 🔥 BOTÓN DE PRUEBA TEMPORAL - BORRA ESTO DESPUÉS
-  const pruebaEliminarR2 = async () => {
-    const keyDePrueba = "malim/malim-1759250875382-b5mpsnutm-malim-1759250874557-0-0-malim-1759195445451-zmaxsvacb-malim-1759195444876-0-0-image_14_watermarked.jpeg"; // ⚠️ ¡Cambia esto por una key REAL de tu R2!
+  async function testDeleteDebug() {
+  try {
+    const fotos = formData.fotos || [];
+    if (!fotos.length) { alert("No hay fotos"); return; }
+    const url = fotos[0]; // probamos con la primera
+    alert("URL a probar: " + url);
 
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: keyDePrueba }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        alert("✅ ¡ÉXITO! Archivo eliminado:\n" + keyDePrueba);
-      } else {
-        alert("❌ FALLÓ:\n" + data.error + "\nKey: " + keyDePrueba);
-      }
-    } catch (err) {
-      alert("🚨 ERROR DE RED:\n" + err.message);
+    // helper para extraer key: (usa el mismo getR2KeyFromUrl)
+    function getR2KeyFromUrl(u) {
+      try { const x = new URL(u); return x.pathname.startsWith("/") ? x.pathname.slice(1) : x.pathname; }
+      catch(e){ return u.split("/").pop(); }
     }
-  };
+    const key = getR2KeyFromUrl(url);
+    alert("Key calculada (frontend): " + key);
 
-  // 🔥 BOTÓN DE PRUEBA MANUAL CON DETALLES
-  const pruebaManual = async () => {
-    const keyReal = "malim/malim-1759250875382-b5mpsnutm-malim-1759250874557-0-0-malim-1759195445451-zmaxsvacb-malim-1759195444876-0-0-image_14_watermarked.jpeg"; // ⚠️ ¡CAMBIA ESTO POR UNA KEY REAL DE TU R2!
+    // Llamada DEBUG: añadimos key también en query para saltar problemas de body en DELETE
+    const debugUrl = `${BACKEND_URL}/api/deleteImage?debug=1&key=${encodeURIComponent(key)}`;
 
-    try {
-      alert("🚀 Iniciando prueba manual...");
+    alert("Enviando DELETE a: " + debugUrl);
 
-      const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify({ key: keyReal }),
-      });
+    const response = await fetch(debugUrl, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug": "1"
+      },
+      body: JSON.stringify({ key }) // lo mandamos igual (por si el server lo lee)
+    });
 
-      alert(`✅ Status: ${response.status}`);
+    alert("Request enviada. Status: " + response.status);
+    const text = await response.text();
+    alert("Respuesta recibida: " + text);
+  } catch (err) {
+    alert("Error en testDeleteDebug: " + err.message);
+  }
+}
 
-      const data = await response.json();
-      alert(`📄 Respuesta: ${JSON.stringify(data, null, 2)}`);
-
-      if (data.success) {
-        alert("🎉 ¡Eliminado con éxito!");
-      } else {
-        alert(`❌ Error: ${data.error}\nKey usada: ${keyReal}`);
-      }
-
-    } catch (err) {
-      alert(`🚨 ERROR: ${err.message}`);
-    }
-  };
 
   return (
     <div className="bg-pink-100 min-h-screen">
@@ -495,20 +479,13 @@ async function deleteImageFromStorage(url) {
         {/* 🔥 BOTÓN DE PRUEBA TEMPORAL - BORRA ESTO DESPUÉS */}
         <button
           type="button"
-          onClick={pruebaEliminarR2}
+          onClick={testDeleteDebug}
           className="mt-4 py-2 px-4 bg-yellow-500 text-white rounded-md"
         >
           🧪 Probar eliminar de R2
         </button>
 
-        <button
-          type="button"
-          onClick={pruebaManual}
-          className="mt-2 py-2 px-4 bg-blue-500 text-white rounded-md"
-        >
-          🧪 Prueba Manual con Alertas
-        </button>
-
+        
 
 
 
