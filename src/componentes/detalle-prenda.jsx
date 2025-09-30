@@ -198,39 +198,37 @@ function DetallePrenda() {
 
   // 🔥 FUNCIÓN CORREGIDA PARA ELIMINAR DE R2
   async function deleteImageFromStorage(url) {
-    try {
-      alert("Iniciando deleteImageFromStorage");
+  try {
+    alert("Iniciando deleteImageFromStorage");
 
-      alert("URL detectada: " + url);
+    alert("URL detectada: " + url);
 
-      // Extraer key desde la URL
-      const key = url.split("/").pop();
-      alert("Key calculada: " + key);
+    const key = url.split("/").pop();
+    alert("Key calculada: " + key);
 
-      const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ key }),
-      });
+    const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key }),
+    });
 
-      alert("Request enviada. Status: " + response.status);
+    alert("Request enviada. Status: " + response.status);
 
-      const data = await response.json().catch(() => null);
-      alert("Respuesta recibida: " + JSON.stringify(data));
+    const text = await response.text();
+    alert("Respuesta recibida: " + text);
 
-      if (!response.ok) {
-        throw new Error(data?.details || data?.error || "Error desconocido en deleteImage");
-      }
-
-      alert("Imagen eliminada con éxito");
-      return true;
-    } catch (err) {
-      alert("Error en deleteImageFromStorage: " + err.message);
-      return false;
+    if (!response.ok) {
+      throw new Error(text || "Error desconocido en deleteImage");
     }
+
+    alert("Imagen eliminada con éxito");
+    return true;
+  } catch (err) {
+    alert("Error en deleteImageFromStorage: " + err.message);
+    return false;
   }
+}
+
 
 
 
