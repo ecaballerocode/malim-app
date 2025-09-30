@@ -441,7 +441,7 @@ function DetallePrenda() {
 
   // 🔥 BOTÓN DE PRUEBA TEMPORAL - BORRA ESTO DESPUÉS
   const pruebaEliminarR2 = async () => {
-    const keyDePrueba = "malim-1759250875382-b5mpsnutm-malim-1759250874557-0-0-malim-1759195445451-zmaxsvacb-malim-1759195444876-0-0-image_14_watermarked.jpeg"; // ⚠️ ¡Cambia esto por una key REAL de tu R2!
+    const keyDePrueba = "malim/malim-1759250875382-b5mpsnutm-malim-1759250874557-0-0-malim-1759195445451-zmaxsvacb-malim-1759195444876-0-0-image_14_watermarked.jpeg"; // ⚠️ ¡Cambia esto por una key REAL de tu R2!
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
@@ -459,6 +459,38 @@ function DetallePrenda() {
       }
     } catch (err) {
       alert("🚨 ERROR DE RED:\n" + err.message);
+    }
+  };
+
+  // 🔥 BOTÓN DE PRUEBA MANUAL CON DETALLES
+  const pruebaManual = async () => {
+    const keyReal = "malim/malim-1759250875382-b5mpsnutm-malim-1759250874557-0-0-malim-1759195445451-zmaxsvacb-malim-1759195444876-0-0-image_14_watermarked.jpeg"; // ⚠️ ¡CAMBIA ESTO POR UNA KEY REAL DE TU R2!
+
+    try {
+      alert("🚀 Iniciando prueba manual...");
+
+      const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({ key: keyReal }),
+      });
+
+      alert(`✅ Status: ${response.status}`);
+
+      const data = await response.json();
+      alert(`📄 Respuesta: ${JSON.stringify(data, null, 2)}`);
+
+      if (data.success) {
+        alert("🎉 ¡Eliminado con éxito!");
+      } else {
+        alert(`❌ Error: ${data.error}\nKey usada: ${keyReal}`);
+      }
+
+    } catch (err) {
+      alert(`🚨 ERROR: ${err.message}`);
     }
   };
 
@@ -533,6 +565,21 @@ function DetallePrenda() {
         >
           🧪 Probar eliminar de R2
         </button>
+
+        <button
+          type="button"
+          onClick={pruebaManual}
+          className="mt-2 py-2 px-4 bg-blue-500 text-white rounded-md"
+        >
+          🧪 Prueba Manual con Alertas
+        </button>
+
+
+
+
+
+
+
 
 
         <form onSubmit={handleSubmit} className="lg:border-2 lg:shadow-xl px-5 lg:py-2 pb-20 mt-2 rounded-lg border-pink-200 max-w-lg w-full">
