@@ -441,7 +441,7 @@ function DetallePrenda() {
 
   // 🔥 BOTÓN DE PRUEBA TEMPORAL - BORRA ESTO DESPUÉS
   const pruebaEliminarR2 = async () => {
-    const keyDePrueba = "malim/malim-1759250875382-b5mpsnutm-malim-1759250874557-0-0-malim-1759195445451-zmaxsvacb-malim-1759195444876-0-0-image_14_watermarked.jpeg"; // ⚠️ ¡Cambia esto por una key REAL de tu R2!
+    const keyDePrueba = "malim-1759250875382-b5mpsnutm-malim-1759250874557-0-0-malim-1759195445451-zmaxsvacb-malim-1759195444876-0-0-image_14_watermarked.jpeg"; // ⚠️ ¡Cambia esto por una key REAL de tu R2!
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
@@ -529,7 +529,7 @@ function DetallePrenda() {
         <button
           type="button"
           onClick={pruebaEliminarR2}
-          className="mt-4 py-2 px-4 bg-blue-500 text-white rounded-md"
+          className="mt-4 py-2 px-4 bg-red-500 text-white rounded-md"
         >
           🧪 Probar eliminar de R2
         </button>
