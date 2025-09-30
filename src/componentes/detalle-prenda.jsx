@@ -33,6 +33,7 @@ function DetallePrenda() {
   // 🔥 CORRECCIÓN: Eliminamos los espacios al final de la URL
   const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app").trim();
 
+
   const manejadorMenu = () => {
     setmenuAbierto(!menuAbierto);
   };
@@ -213,11 +214,12 @@ function getR2KeyFromUrl(url) {
 }
 
 // 👉 función principal para eliminar la imagen
+
 async function deleteImageFromStorage(key) {
   try {
     alert("Key calculada: " + key);
 
-    const url = `${process.env.REACT_APP_BACKEND_URL}/api/deleteImage?key=${encodeURIComponent(key)}`;
+    const url = `${BACKEND_URL}/api/deleteImage?key=${encodeURIComponent(key)}`;
     alert("Enviando DELETE a: " + url);
 
     const response = await fetch(url, {
@@ -242,6 +244,7 @@ async function deleteImageFromStorage(key) {
     throw err;
   }
 }
+
 
 
 
