@@ -1,14 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Select from "react-select";
-import {
-  doc,
-  getDoc,
-  updateDoc,
-  getDocs,
-  collection,
-  deleteDoc,
-} from "firebase/firestore";
+import { doc, getDoc, updateDoc, getDocs, collection, deleteDoc } from "firebase/firestore";
 import { db } from "../credenciales";
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
@@ -35,106 +28,37 @@ function DetallePrenda() {
   const [proveedores, setProveedores] = useState([]);
   const [menuAbierto, setmenuAbierto] = useState(false);
   const [menuAñadir, setmenuAñadir] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({
-    current: 0,
-    total: 0,
-  });
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
 
-  const BACKEND_URL =
-    process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app";
+  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app";
 
-  const manejadorMenu = () => setmenuAbierto(!menuAbierto);
-  const manejadorMenuAñadir = () => setmenuAñadir(!menuAñadir);
+  const manejadorMenu = () => {
+    setmenuAbierto(!menuAbierto);
+  };
+
+  const manejadorMenuAñadir = () => {
+    setmenuAñadir(!menuAñadir);
+  };
 
   const categorias = [
-    "Abrigos",
-    "Accesorios",
-    "Patria",
-    "Blusas",
-    "Playeras",
-    "Playeras deportivas",
-    "Conjuntos",
-    "Conjuntos deportivos",
-    "Chamarras",
-    "Sudaderas",
-    "Maxi sudaderas",
-    "Maxi vestidos",
-    "Maxi cobijas",
-    "Ensambles",
-    "Pantalones",
-    "Pants",
-    "Shorts",
-    "Infantil niño",
-    "Infantil niña",
-    "Medias",
-    "Leggins",
-    "Mallones",
-    "Ropa interior",
-    "Sacos",
-    "Blazers",
-    "Capas",
-    "Palazzos",
-    "Camisas",
-    "Gorros",
-    "Calzado",
-    "Chalecos",
-    "Blusones",
-    "Pijamas",
-    "Guantes",
-    "Faldas",
-    "Suéteres",
-    "Overoles",
-    "Otros",
-    "Sin Categoria",
-    "Niños uisex",
-    "Gabardinas",
-    "Vestidos",
+    "Abrigos", "Accesorios", "Patria", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
+    "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas", "Maxi vestidos", "Maxi cobijas",
+    "Ensambles", "Pantalones", "Pants", "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
+    "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos", "Camisas", "Gorros", "Calzado",
+    "Chalecos", "Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres", "Overoles", "Otros", "Sin Categoria",
+    "Niños uisex", "Gabardinas", "Vestidos"
   ];
 
   const tallas = [
-    "(Inf 2-4)",
-    "(Inf 4-6)",
-    "(Inf 8-10)",
-    "(Inf 10-12)",
-    "(Inf 6-8)",
-    "(Inf 10-12)",
-    "(juv 14-16)",
-    "(XS 3-5)",
-    "(28-30)",
-    "(30-32)",
-    "(30-34)",
-    "(32-36)",
-    "(32-34)",
-    "(34-36)",
-    "(36-38)",
-    "(38-40)",
-    "(40-42)",
-    "Unitalla",
-    "(5)",
-    "(7)",
-    "(9)",
-    "(11)",
-    "(13)",
-    "(15)",
-    "(17)",
-    "(4)",
-    "(6)",
-    "(8)",
-    "(10)",
-    "(12)",
-    "(14)",
-    "(16)",
-    "(28)",
-    "(30)",
-    "(32)",
-    "(34)",
-    "(36)",
-    "(38)",
-    "(40)",
-    "(42)",
+    "(Inf 2-4)", "(Inf 4-6)", "(Inf 8-10)", "(Inf 10-12)", "(Inf 6-8)", "(Inf 10-12)", "(juv 14-16)", "(XS 3-5)", "(28-30)", "(30-32)", "(30-34)",
+    "(32-36)", "(32-34)", "(34-36)", "(36-38)", "(38-40)", "(40-42)", "Unitalla", "(5)", "(7)", "(9)",
+    "(11)", "(13)", "(15)", "(17)", "(4)", "(6)", "(8)", "(10)", "(12)", "(14)", "(16)", "(28)", "(30)",
+    "(32)", "(34)", "(36)", "(38)", "(40)", "(42)"
   ];
 
-  const manejarClickVender = (id) => navigate(`/FormVender/${id}`);
+  const manejarClickVender = (id) => {
+    navigate(`/FormVender/${id}`);
+  };
 
   const proveedoresOptions = proveedores.map((prov) => ({
     value: prov.id,
@@ -182,56 +106,50 @@ function DetallePrenda() {
     fetchProveedores();
   }, [id]);
 
-  /* ==============================
-     SUBIDA DE IMÁGENES
-  ============================== */
+  // ✅ FUNCIÓN PARA SUBIR UN LOTE DE IMÁGENES (MÁXIMO 2 POR LOTE)
   const uploadImageBatch = async (filesBatch, batchNumber) => {
     try {
       const uploadFormData = new FormData();
       filesBatch.forEach((file, index) => {
-        const fileName = `malim-${Date.now()}-${batchNumber}-${index}-${file.name.replace(
-          /[^a-zA-Z0-9.-]/g,
-          "_"
-        )}`;
+        const fileName = `malim-${Date.now()}-${batchNumber}-${index}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
         uploadFormData.append("files", file, fileName);
       });
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      const response = await fetch(`${BACKEND_URL}/api/upload`, {
+      const response = await fetch(BACKEND_URL + "/api/upload", {
         method: "POST",
         body: uploadFormData,
-        mode: "cors",
-        signal: controller.signal,
+        mode: 'cors',
+        signal: controller.signal
       });
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(
-          `Error en lote ${batchNumber + 1}: ${response.status} - ${errorText}`
-        );
+        throw new Error(`Error en lote ${batchNumber + 1}: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      if (data?.urls && Array.isArray(data.urls)) {
+      if (data && data.urls && Array.isArray(data.urls)) {
         return data.urls;
       } else {
-        throw new Error(
-          `Formato de respuesta inválido en lote ${batchNumber + 1}`
-        );
+        throw new Error(`Formato de respuesta inválido en lote ${batchNumber + 1}`);
       }
+
     } catch (error) {
       console.error(`Error en lote ${batchNumber + 1}:`, error);
       throw error;
     }
   };
 
+  // ✅ FUNCIÓN PRINCIPAL QUE MANEJA LOTES DE MÁXIMO 2 IMÁGENES
   const uploadAllImages = async (files) => {
     if (files.length === 0) return [];
 
+    // Dividir en lotes de máximo 2 imágenes
     const batchSize = 2;
     const batches = [];
     for (let i = 0; i < files.length; i += batchSize) {
@@ -247,22 +165,18 @@ function DetallePrenda() {
         allUrls.push(...batchUrls);
         setUploadProgress({ current: i + 1, total: batches.length });
 
+        // Pequeña pausa entre lotes para no saturar el backend
         if (i < batches.length - 1) {
-          await new Promise((resolve) => setTimeout(resolve, 800));
+          await new Promise(resolve => setTimeout(resolve, 800));
         }
       } catch (error) {
-        throw new Error(
-          `Fallo en lote ${i + 1}/${batches.length}: ${error.message}`
-        );
+        throw new Error(`Fallo en lote ${i + 1}/${batches.length}: ${error.message}`);
       }
     }
 
     return allUrls;
   };
 
-  /* ==============================
-     ACTUALIZAR PRENDA
-  ============================== */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -283,74 +197,129 @@ function DetallePrenda() {
     }
   };
 
-  /* ==============================
-     ELIMINAR IMAGEN DE R2
-  ============================== */
+  const CLOUDINARY_UPLOAD_PRESET = "malimapp";
+
+  // Función auxiliar para eliminar imágenes del storage
+  // Función auxiliar para eliminar imágenes del storage
+  // Función auxiliar para eliminar imágenes del storage - VERSIÓN CORREGIDA
   const deleteImageFromStorage = async (fotoUrl) => {
     try {
-      if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
-        console.log("Eliminando de R2:", fotoUrl);
+      if (fotoUrl.includes("res.cloudinary.com")) {
+        console.log("Eliminando de Cloudinary:", fotoUrl);
 
-        const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
-          method: "DELETE",
+        const urlParts = fotoUrl.split('/');
+        const uploadIndex = urlParts.indexOf('upload');
+        let publicId = '';
+
+        if (uploadIndex !== -1 && urlParts.length > uploadIndex + 2) {
+          const versionPart = urlParts[uploadIndex + 1];
+          if (versionPart.startsWith('v')) {
+            publicId = urlParts.slice(uploadIndex + 2).join('/');
+          } else {
+            publicId = urlParts.slice(uploadIndex + 1).join('/');
+          }
+          publicId = publicId.replace(/\.[^/.]+$/, "");
+        }
+
+        if (!publicId) {
+          console.warn("No se pudo extraer public_id de:", fotoUrl);
+          return false;
+        }
+
+        const response = await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
+          method: "POST",
           headers: {
-            Accept: "application/json",
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ url: fotoUrl }),
+          body: JSON.stringify({
+            public_id: publicId,
+            upload_preset: CLOUDINARY_UPLOAD_PRESET,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Cloudinary error: ${response.status}`);
+        }
+
+        console.log("Imagen de Cloudinary eliminada:", publicId);
+        return true;
+
+      } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
+        console.log("Eliminando de R2:", fotoUrl);
+
+        // ✅ CORRECCIÓN: Enviar la URL en el body, no como query parameter
+        const backendUrl = `${BACKEND_URL}/api/deleteImage`;
+
+        console.log("Llamando a:", backendUrl);
+
+        const response = await fetch(backendUrl, {
+          method: "DELETE",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ url: fotoUrl }) // ✅ URL en el body
         });
 
         const result = await response.json();
 
         if (!response.ok) {
+          if (response.status === 404) {
+            console.warn("Imagen no encontrada en R2, continuando:", fotoUrl);
+            return true;
+          }
           throw new Error(result.error || `Error R2: ${response.status}`);
         }
 
-        console.log(
-          "Imagen de R2 eliminada:",
-          fotoUrl,
-          result.message || "OK"
-        );
+        if (!result.success && !result.message.includes("no se requiere eliminación")) {
+          throw new Error(result.error || "Error al eliminar imagen de R2");
+        }
+
+        console.log("Imagen de R2 eliminada o no requería eliminación:", fotoUrl, result.message);
         return true;
+
       } else {
-        console.warn("URL no reconocida, no se elimina:", fotoUrl);
+        console.warn("URL de imagen no reconocida, no se elimina:", fotoUrl);
         return true;
       }
     } catch (error) {
+      if (error.message.includes("no fue encontrada") ||
+        error.message.includes("not found")) {
+        console.warn("Imagen no encontrada, continuando:", fotoUrl);
+        return true;
+      }
+
       console.error(`Error eliminando imagen ${fotoUrl}:`, error);
       throw error;
     }
   };
 
-  /* ==============================
-     ELIMINAR PRENDA COMPLETA
-  ============================== */
   const handleDelete = async () => {
-    if (!window.confirm("¿Estás seguro de que deseas eliminar esta prenda?"))
-      return;
+    const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar esta prenda?");
+    if (!confirmDelete) return;
 
     try {
       setLoading(true);
       console.log("Iniciando eliminación de prenda:", id);
 
-      // Eliminar todas las imágenes de Cloudflare R2
-      await Promise.all(
-        formData.fotos.map((fotoUrl) =>
-          deleteImageFromStorage(fotoUrl).catch((error) => {
-            console.warn(
-              `Error eliminando imagen ${fotoUrl}:`,
-              error.message
-            );
-            return true;
+      // Eliminar imágenes del storage con mejor manejo de errores
+      const deletePromises = formData.fotos.map(fotoUrl =>
+        deleteImageFromStorage(fotoUrl)
+          .catch(error => {
+            // Log del error pero continuamos con la eliminación
+            console.warn(`Error eliminando imagen ${fotoUrl}:`, error.message);
+            return true; // Consideramos éxito para continuar
           })
-        )
       );
+
+      await Promise.all(deletePromises);
 
       // Eliminar documento de Firestore
       await deleteDoc(doc(db, "disponible", id));
 
       alert("Prenda eliminada con éxito");
       navigate("/Disponible");
+
     } catch (error) {
       console.error("Error general al eliminar la prenda:", error);
       alert("Error al eliminar la prenda: " + error.message);
@@ -359,17 +328,17 @@ function DetallePrenda() {
     }
   };
 
-  /* ==============================
-     ELIMINAR UNA SOLA IMAGEN
-  ============================== */
   const handleDeleteImage = async (fotoUrl) => {
-    if (!window.confirm("¿Seguro que quieres eliminar esta imagen?")) return;
+    const confirm = window.confirm("¿Seguro que quieres eliminar esta imagen?");
+    if (!confirm) return;
 
     try {
       setLoading(true);
 
+      // Eliminar del storage
       await deleteImageFromStorage(fotoUrl);
 
+      // Quitar del array de fotos en Firebase
       const nuevasFotos = formData.fotos.filter((foto) => foto !== fotoUrl);
       setFormData({ ...formData, fotos: nuevasFotos });
 
@@ -377,6 +346,7 @@ function DetallePrenda() {
       await updateDoc(prendaRef, { fotos: nuevasFotos });
 
       alert("Imagen eliminada con éxito");
+
     } catch (error) {
       console.error("Error al eliminar imagen individual:", error);
       alert("Error al eliminar la imagen: " + error.message);
@@ -385,43 +355,37 @@ function DetallePrenda() {
     }
   };
 
-  /* ==============================
-     HANDLERS GENERALES
-  ============================== */
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleCategoriaChange = (selectedOption) =>
+  const handleCategoriaChange = (selectedOption) => {
     setFormData({ ...formData, categoria: selectedOption });
+  };
 
   const handleTallaChange = (selectedOptions) => {
-    const selectedTallas = selectedOptions
-      ? selectedOptions.map((option) => option.value)
-      : [];
+    const selectedTallas = selectedOptions ? selectedOptions.map((option) => option.value) : [];
     setFormData({ ...formData, talla: selectedTallas });
   };
 
-  const handleProveedorChange = (selectedOption) =>
+  const handleProveedorChange = (selectedOption) => {
     setFormData({ ...formData, proveedor: selectedOption });
+  };
 
   const enviarWhatsapp = (id) => {
     const message = encodeURIComponent("Conoce nuestras prendas aqui: ");
-    const urlId = encodeURIComponent(
-      `https://malim-shop.vercel.app/DetallePrenda/${id}`
-    );
+    const urlId = encodeURIComponent(`https://malim-shop.vercel.app/DetallePrenda/${id}`);
     const url = `https://wa.me/?text=${message}${urlId}`;
     window.open(url, "_blank");
   };
 
-  /* ==============================
-     SUBIR NUEVAS IMÁGENES
-  ============================== */
+  // ✅ SUBIR NUEVAS IMÁGENES CON SISTEMA DE LOTES
   const handleFileChange = async (e) => {
     const files = [...e.target.files];
     if (!files.length) return;
 
+    // Validaciones
     if (files.length > 10) {
       alert("⚠️ Máximo 10 imágenes por vez");
       return;
@@ -429,21 +393,26 @@ function DetallePrenda() {
 
     const totalSize = files.reduce((total, file) => total + file.size, 0);
     if (totalSize > 15 * 1024 * 1024) {
-      alert("⚠️ El tamaño total no debe exceder 15MB");
+      alert("⚠️ El tamaño total de las imágenes no debe exceder 15MB");
       return;
     }
 
     try {
       setLoading(true);
 
+      // Subir imágenes usando el sistema de lotes
       const uploadedUrls = await uploadAllImages(files);
+
+      // Agregar nuevas imágenes al array existente
       const nuevasFotos = [...formData.fotos, ...uploadedUrls];
       setFormData({ ...formData, fotos: nuevasFotos });
 
+      // Guardar en Firestore
       const prendaRef = doc(db, "disponible", id);
       await updateDoc(prendaRef, { fotos: nuevasFotos });
 
       alert(`✅ ${uploadedUrls.length} imágenes añadidas con éxito`);
+
     } catch (error) {
       alert("❌ Error al subir imágenes: " + error.message);
       console.error(error);
@@ -453,9 +422,6 @@ function DetallePrenda() {
     }
   };
 
-  /* ==============================
-     SLIDER CONFIG
-  ============================== */
   const settings = {
     dots: true,
     infinite: true,
@@ -464,18 +430,9 @@ function DetallePrenda() {
     slidesToScroll: 1,
   };
 
-  const categoriaOptions = categorias.map((cat) => ({
-    value: cat,
-    label: cat,
-  }));
-  const tallaOptions = tallas.map((talla) => ({
-    value: talla,
-    label: talla,
-  }));
+  const categoriaOptions = categorias.map((cat) => ({ value: cat, label: cat }));
+  const tallaOptions = tallas.map((talla) => ({ value: talla, label: talla }));
 
-  /* ==============================
-     JSX
-  ============================== */
   return (
     <div className="bg-pink-100 min-h-screen">
       <header className="relative">
@@ -485,24 +442,24 @@ function DetallePrenda() {
         </h1>
       </header>
 
-      <MenuLateral menuAbierto={menuAbierto} />
-      <MenuAñadir menuAñadir={menuAñadir} />
+      <div>
+        <MenuLateral menuAbierto={menuAbierto} />
+      </div>
 
-      {/* Barra de progreso */}
+      <div>
+        <MenuAñadir menuAñadir={menuAñadir} />
+      </div>
+
+      {/* INDICADOR DE PROGRESO DE SUBIDA */}
       {uploadProgress.total > 0 && (
         <div className="fixed top-20 left-1/2 transform -translate-x-1/2 bg-white p-4 rounded-lg shadow-lg z-50">
           <p className="text-sm font-medium mb-2">
-            Subiendo imágenes... {uploadProgress.current}/{uploadProgress.total}{" "}
-            lotes
+            Subiendo imágenes... {uploadProgress.current}/{uploadProgress.total} lotes
           </p>
           <div className="w-64 bg-gray-200 rounded-full h-2">
             <div
               className="bg-pink-500 h-2 rounded-full transition-all"
-              style={{
-                width: `${
-                  (uploadProgress.current / uploadProgress.total) * 100
-                }%`,
-              }}
+              style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
             ></div>
           </div>
         </div>
@@ -538,12 +495,9 @@ function DetallePrenda() {
         </div>
       ) : null}
 
-      {/* Formulario */}
+      {/* Formulario de edición */}
       <main className="pb-20 flex flex-center justify-center">
-        <form
-          onSubmit={handleSubmit}
-          className="lg:border-2 lg:shadow-xl px-5 lg:py-2 pb-20 mt-2 rounded-lg border-pink-200 max-w-lg w-full"
-        >
+        <form onSubmit={handleSubmit} className="lg:border-2 lg:shadow-xl px-5 lg:py-2 pb-20 mt-2 rounded-lg border-pink-200 max-w-lg w-full">
           <div className="flex flex-col justify-center my-3">
             <input
               type="file"
@@ -601,10 +555,7 @@ function DetallePrenda() {
             <label className="px-2 text-pink-800 font-bold">Talla:</label>
             <Select
               options={tallaOptions}
-              value={formData.talla.map((talla) => ({
-                value: talla,
-                label: talla,
-              }))}
+              value={formData.talla.map((talla) => ({ value: talla, label: talla }))}
               onChange={handleTallaChange}
               isMulti
               placeholder="Seleccionar tallas"
@@ -653,25 +604,16 @@ function DetallePrenda() {
             >
               {loading ? "Actualizando..." : "Actualizar Prenda"}
             </button>
-            <button
-              onClick={() => manejarClickVender(id)}
-              className="mt-2 py-2 px-4 bg-pink-700 text-white rounded-md cursor-pointer hover:bg-pink-200"
-              type="button"
-            >
+            <button onClick={() => manejarClickVender(id)} className="mt-2 py-2 px-4 bg-pink-700 text-white rounded-md cursor-pointer hover:bg-pink-200"
+              type="button">
               Vender
             </button>
-            <button
-              className="mt-2 py-2 px-4 bg-red-600 text-white rounded-md cursor-pointer hover:bg-pink-200"
-              type="button"
-              onClick={handleDelete}
-            >
+            <button className="mt-2 py-2 px-4 bg-red-600 text-white rounded-md cursor-pointer hover:bg-pink-200"
+              type="button" onClick={handleDelete}>
               Eliminar prenda
             </button>
-            <button
-              className="mt-2 py-2 px-4 bg-green-600 text-white rounded-md cursor-pointer hover:bg-pink-200"
-              type="button"
-              onClick={() => enviarWhatsapp(id)}
-            >
+            <button className="mt-2 py-2 px-4 bg-green-600 text-white rounded-md cursor-pointer hover:bg-pink-200"
+              type="button" onClick={() => enviarWhatsapp(id)}>
               Compartir
             </button>
           </div>
