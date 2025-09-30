@@ -197,122 +197,42 @@ function DetallePrenda() {
   const CLOUDINARY_UPLOAD_PRESET = "malimapp";
 
   // 🔥 FUNCIÓN CORREGIDA PARA ELIMINAR DE R2
-  const deleteImageFromStorage = async (fotoUrl) => {
-    try {
-      if (fotoUrl.includes("res.cloudinary.com")) {
-        console.log("Eliminando de Cloudinary:", fotoUrl);
+  async function deleteImageFromStorage(fotoUrl) {
+  try {
+    alert("Iniciando deleteImageFromStorage");
 
-        const urlParts = fotoUrl.split('/');
-        const uploadIndex = urlParts.indexOf('upload');
-        let publicId = '';
-
-        if (uploadIndex !== -1 && urlParts.length > uploadIndex + 2) {
-          const versionPart = urlParts[uploadIndex + 1];
-          if (versionPart.startsWith('v')) {
-            publicId = urlParts.slice(uploadIndex + 2).join('/');
-          } else {
-            publicId = urlParts.slice(uploadIndex + 1).join('/');
-          }
-          publicId = publicId.replace(/\.[^/.]+$/, "");
-        }
-
-        if (!publicId) {
-          console.warn("No se pudo extraer public_id de:", fotoUrl);
-          return false;
-        }
-
-        const response = await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            public_id: publicId,
-            upload_preset: CLOUDINARY_UPLOAD_PRESET,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Cloudinary error: ${response.status}`);
-        }
-
-        console.log("Imagen de Cloudinary eliminada:", publicId);
-        return true;
-
-      } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
-        console.log("Eliminando de R2. URL recibida:", fotoUrl);
-
-        // 🔥 EXTRAER EL KEY CORRECTO DE LA URL DE R2
-        // Ejemplo de URL: https://pub-123456.r2.dev/uploads/abc123.jpg
-        // Queremos solo: "uploads/abc123.jpg"
-        // 🔥 EXTRAER EL KEY CORRECTO DE LA URL DE R2 (más robusto)
-        let key = "";
-        try {
-          const urlObj = new URL(fotoUrl);
-          key = urlObj.pathname.substring(1); // Elimina la primera "/"
-          // Si hay query string o fragmento, ignóralos
-          if (key.includes('?')) {
-            key = key.split('?')[0];
-          }
-          if (key.includes('#')) {
-            key = key.split('#')[0];
-          }
-        } catch (e) {
-          console.error("URL inválida para R2:", fotoUrl);
-          alert("❌ Error: URL de imagen inválida para R2");
-          return false;
-        }
-
-        if (!key) {
-          alert("❌ No se pudo extraer el key de la imagen de R2");
-          return false;
-        }
-
-        console.log("Key extraído para R2:", key);
-
-        const backendUrl = `${BACKEND_URL}/api/deleteImage`;
-
-        const response = await fetch(backendUrl, {
-          method: "DELETE",
-          headers: {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ key: key }) // 🔥 Enviamos SOLO el key, no la URL completa
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-          if (response.status === 404) {
-            console.warn("Imagen no encontrada en R2, continuando:", key);
-            return true;
-          }
-          throw new Error(result.error || `Error R2: ${response.status}`);
-        }
-
-        if (!result.success) {
-          throw new Error(result.error || "Error al eliminar imagen de R2");
-        }
-
-        console.log("✅ Imagen de R2 eliminada con éxito:", key);
-        return true;
-
-      } else {
-        console.warn("URL de imagen no reconocida, no se elimina:", fotoUrl);
-        return true;
-      }
-    } catch (error) {
-      if (error.message.includes("no fue encontrada") || error.message.includes("not found")) {
-        console.warn("Imagen no encontrada, continuando:", fotoUrl);
-        return true;
-      }
-
-      console.error(`Error eliminando imagen ${fotoUrl}:`, error);
-      alert("❌ Error al eliminar imagen: " + error.message);
-      throw error;
+    let key;
+    if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
+      alert("URL detectada: " + fotoUrl);
+      const urlObj = new URL(fotoUrl);
+      key = urlObj.pathname.substring(1);
+      alert("Key calculada: " + key);
+    } else {
+      key = fotoUrl;
+      alert("Se tomó key directa: " + key);
     }
-  };
+
+    const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key }),
+    });
+
+    alert("Request enviada. Status: " + response.status);
+
+    const data = await response.json().catch(() => null);
+    alert("Respuesta recibida: " + JSON.stringify(data));
+
+    if (!response.ok) {
+      throw new Error(data?.error || "Error desconocido en deleteImage");
+    }
+
+    alert("Imagen eliminada de R2 con éxito");
+  } catch (error) {
+    alert("Error en deleteImageFromStorage: " + error.message);
+  }
+}
+
 
   const handleDelete = async () => {
     const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar esta prenda?");
@@ -561,7 +481,7 @@ function DetallePrenda() {
         <button
           type="button"
           onClick={pruebaEliminarR2}
-          className="mt-4 py-2 px-4 bg-red-500 text-white rounded-md"
+          className="mt-4 py-2 px-4 bg-yellow-500 text-white rounded-md"
         >
           🧪 Probar eliminar de R2
         </button>
