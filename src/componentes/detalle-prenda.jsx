@@ -213,36 +213,36 @@ function getR2KeyFromUrl(url) {
 }
 
 // 👉 función principal para eliminar la imagen
-async function deleteImageFromStorage(url) {
+async function deleteImageFromStorage(key) {
   try {
-    alert("Iniciando deleteImageFromStorage");
-    alert("URL detectada: " + url);
+    alert("Key calculada: " + key);
 
-    const key = getR2KeyFromUrl(url);
-    if (!key) throw new Error("No se pudo calcular el key");
+    const url = `${process.env.REACT_APP_BACKEND_URL}/api/deleteImage?key=${encodeURIComponent(key)}`;
+    alert("Enviando DELETE a: " + url);
 
-    const response = await fetch("/api/deleteImage", {
+    const response = await fetch(url, {
       method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key }),
+      headers: {
+        "Content-Type": "application/json",
+      },
     });
 
     alert("Request enviada. Status: " + response.status);
 
-    const text = await response.text();
-    alert("Respuesta recibida: " + text);
+    const data = await response.json();
+    alert("Respuesta recibida:\n" + JSON.stringify(data));
 
     if (!response.ok) {
-      throw new Error(text || "Error desconocido en deleteImage");
+      throw new Error(data.error || "Error desconocido en deleteImage");
     }
 
-    alert("Imagen eliminada con éxito ✅");
-    return true;
+    return data;
   } catch (err) {
     alert("Error en deleteImageFromStorage: " + err.message);
-    return false;
+    throw err;
   }
 }
+
 
 
 
