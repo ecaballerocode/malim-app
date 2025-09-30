@@ -199,51 +199,58 @@ function DetallePrenda() {
 
   // 🔥 FUNCIÓN CORREGIDA PARA ELIMINAR DE R2
   // 👉 helper para extraer el key desde la URL de R2
-function getR2KeyFromUrl(url) {
-  try {
-    const u = new URL(url);
-    // 🔥 devuelve todo después del dominio
-    let key = u.pathname.startsWith("/") ? u.pathname.slice(1) : u.pathname;
+  function extractR2KeyFromUrl(urlString) {
+    try {
+      const u = new URL(urlString);
+      let key = u.pathname.startsWith("/") ? u.pathname.slice(1) : u.pathname;
+      key = decodeURIComponent(key);
 
-    alert("Key calculada: " + key);
-    return key;
-  } catch (err) {
-    alert("Error al calcular key: " + err.message);
-    return null;
-  }
-}
+      // Si por alguna razón la URL incluye el bucket en el path, elimínalo:
+      const bucket = "malim-bucket"; // pon aquí el nombre exacto de tu bucket
+      if (key.startsWith(bucket + "/")) {
+        key = key.slice(bucket.length + 1);
+      }
 
-// 👉 función principal para eliminar la imagen
-
-async function deleteImageFromStorage(key) {
-  try {
-    alert("Key calculada: " + key);
-
-    const url = `${BACKEND_URL}/api/deleteImage?key=${encodeURIComponent(key)}`;
-    alert("Enviando DELETE a: " + url);
-
-    const response = await fetch(url, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    alert("Request enviada. Status: " + response.status);
-
-    const data = await response.json();
-    alert("Respuesta recibida:\n" + JSON.stringify(data));
-
-    if (!response.ok) {
-      throw new Error(data.error || "Error desconocido en deleteImage");
+      console.log("[extractR2KeyFromUrl] url:", urlString, "-> key:", key);
+      return key;
+    } catch (err) {
+      console.error("[extractR2KeyFromUrl] error:", err, urlString);
+      return null;
     }
-
-    return data;
-  } catch (err) {
-    alert("Error en deleteImageFromStorage: " + err.message);
-    throw err;
   }
-}
+
+
+  // 👉 función principal para eliminar la imagen
+
+  async function deleteImageFromStorage(key) {
+    try {
+      alert("Key calculada: " + key);
+
+      const url = `${BACKEND_URL}/api/deleteImage?key=${encodeURIComponent(key)}`;
+      alert("Enviando DELETE a: " + url);
+
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      alert("Request enviada. Status: " + response.status);
+
+      const data = await response.json();
+      alert("Respuesta recibida:\n" + JSON.stringify(data));
+
+      if (!response.ok) {
+        throw new Error(data.error || "Error desconocido en deleteImage");
+      }
+
+      return data;
+    } catch (err) {
+      alert("Error en deleteImageFromStorage: " + err.message);
+      throw err;
+    }
+  }
 
 
 
@@ -260,13 +267,16 @@ async function deleteImageFromStorage(key) {
       setLoading(true);
       console.log("Iniciando eliminación de prenda:", id);
 
-      const deletePromises = formData.fotos.map(fotoUrl =>
-        deleteImageFromStorage(fotoUrl)
+
+      const deletePromises = formData.fotos.map(fotoUrl => {
+        const key = extractR2KeyFromUrl(fotoUrl);
+        return deleteImageFromStorage(key)
           .catch(error => {
             console.warn(`Error eliminando imagen ${fotoUrl}:`, error.message);
             return true;
-          })
-      );
+          });
+      });
+
 
       await Promise.all(deletePromises);
       await deleteDoc(doc(db, "disponible", id));
@@ -288,7 +298,9 @@ async function deleteImageFromStorage(key) {
 
     try {
       setLoading(true);
-      await deleteImageFromStorage(fotoUrl);
+      const key = extractR2KeyFromUrl(fotoUrl);
+      await deleteImageFromStorage(key);
+
 
       const nuevasFotos = formData.fotos.filter((foto) => foto !== fotoUrl);
       setFormData({ ...formData, fotos: nuevasFotos });
@@ -379,41 +391,41 @@ async function deleteImageFromStorage(key) {
 
   // 🔥 BOTÓN DE PRUEBA TEMPORAL - BORRA ESTO DESPUÉS
   async function testDeleteDebug() {
-  try {
-    const fotos = formData.fotos || [];
-    if (!fotos.length) { alert("No hay fotos"); return; }
-    const url = fotos[0]; // probamos con la primera
-    alert("URL a probar: " + url);
+    try {
+      const fotos = formData.fotos || [];
+      if (!fotos.length) { alert("No hay fotos"); return; }
+      const url = fotos[0]; // probamos con la primera
+      alert("URL a probar: " + url);
 
-    // helper para extraer key: (usa el mismo getR2KeyFromUrl)
-    function getR2KeyFromUrl(u) {
-      try { const x = new URL(u); return x.pathname.startsWith("/") ? x.pathname.slice(1) : x.pathname; }
-      catch(e){ return u.split("/").pop(); }
+      // helper para extraer key: (usa el mismo getR2KeyFromUrl)
+      function getR2KeyFromUrl(u) {
+        try { const x = new URL(u); return x.pathname.startsWith("/") ? x.pathname.slice(1) : x.pathname; }
+        catch (e) { return u.split("/").pop(); }
+      }
+      const key = getR2KeyFromUrl(url);
+      alert("Key calculada (frontend): " + key);
+
+      // Llamada DEBUG: añadimos key también en query para saltar problemas de body en DELETE
+      const debugUrl = `${BACKEND_URL}/api/deleteImage?debug=1&key=${encodeURIComponent(key)}`;
+
+      alert("Enviando DELETE a: " + debugUrl);
+
+      const response = await fetch(debugUrl, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Debug": "1"
+        },
+        body: JSON.stringify({ key }) // lo mandamos igual (por si el server lo lee)
+      });
+
+      alert("Request enviada. Status: " + response.status);
+      const text = await response.text();
+      alert("Respuesta recibida: " + text);
+    } catch (err) {
+      alert("Error en testDeleteDebug: " + err.message);
     }
-    const key = getR2KeyFromUrl(url);
-    alert("Key calculada (frontend): " + key);
-
-    // Llamada DEBUG: añadimos key también en query para saltar problemas de body en DELETE
-    const debugUrl = `${BACKEND_URL}/api/deleteImage?debug=1&key=${encodeURIComponent(key)}`;
-
-    alert("Enviando DELETE a: " + debugUrl);
-
-    const response = await fetch(debugUrl, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Debug": "1"
-      },
-      body: JSON.stringify({ key }) // lo mandamos igual (por si el server lo lee)
-    });
-
-    alert("Request enviada. Status: " + response.status);
-    const text = await response.text();
-    alert("Respuesta recibida: " + text);
-  } catch (err) {
-    alert("Error en testDeleteDebug: " + err.message);
   }
-}
 
 
   return (
@@ -488,7 +500,7 @@ async function deleteImageFromStorage(key) {
           🧪 Probar eliminar de R2
         </button>
 
-        
+
 
 
 
