@@ -258,7 +258,7 @@ function DetallePrenda() {
             "Accept": "application/json",
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ url: fotoUrl }) // ✅ URL en el body
+          body: JSON.stringify({ key: fotoUrl })
         });
 
         const result = await response.json();
