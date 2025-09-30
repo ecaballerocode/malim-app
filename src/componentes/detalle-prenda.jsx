@@ -197,41 +197,41 @@ function DetallePrenda() {
   const CLOUDINARY_UPLOAD_PRESET = "malimapp";
 
   // 🔥 FUNCIÓN CORREGIDA PARA ELIMINAR DE R2
-  async function deleteImageFromStorage(fotoUrl) {
-  try {
-    alert("Iniciando deleteImageFromStorage");
+  async function deleteImageFromStorage(url) {
+    try {
+      alert("Iniciando deleteImageFromStorage");
 
-    let key;
-    if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
-      alert("URL detectada: " + fotoUrl);
-      const urlObj = new URL(fotoUrl);
-      key = urlObj.pathname.substring(1);
+      alert("URL detectada: " + url);
+
+      // Extraer key desde la URL
+      const key = url.split("/").pop();
       alert("Key calculada: " + key);
-    } else {
-      key = fotoUrl;
-      alert("Se tomó key directa: " + key);
+
+      const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ key }),
+      });
+
+      alert("Request enviada. Status: " + response.status);
+
+      const data = await response.json().catch(() => null);
+      alert("Respuesta recibida: " + JSON.stringify(data));
+
+      if (!response.ok) {
+        throw new Error(data?.details || data?.error || "Error desconocido en deleteImage");
+      }
+
+      alert("Imagen eliminada con éxito");
+      return true;
+    } catch (err) {
+      alert("Error en deleteImageFromStorage: " + err.message);
+      return false;
     }
-
-    const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key }),
-    });
-
-    alert("Request enviada. Status: " + response.status);
-
-    const data = await response.json().catch(() => null);
-    alert("Respuesta recibida: " + JSON.stringify(data));
-
-    if (!response.ok) {
-      throw new Error(data?.error || "Error desconocido en deleteImage");
-    }
-
-    alert("Imagen eliminada de R2 con éxito");
-  } catch (error) {
-    alert("Error en deleteImageFromStorage: " + error.message);
   }
-}
+
 
 
   const handleDelete = async () => {
