@@ -197,36 +197,52 @@ function DetallePrenda() {
   const CLOUDINARY_UPLOAD_PRESET = "malimapp";
 
   // 🔥 FUNCIÓN CORREGIDA PARA ELIMINAR DE R2
-  async function deleteImageFromStorage(url) {
-    try {
-      alert("Iniciando deleteImageFromStorage");
-      alert("URL detectada: " + url);
+  // 👉 helper para extraer el key desde la URL de R2
+function getR2KeyFromUrl(url) {
+  try {
+    const u = new URL(url);
+    // 🔥 devuelve todo después del dominio
+    let key = u.pathname.startsWith("/") ? u.pathname.slice(1) : u.pathname;
 
-      const key = getR2KeyFromUrl(url);
-      if (!key) throw new Error("No se pudo calcular el key");
-
-      const response = await fetch("/api/deleteImage", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key }),
-      });
-
-      alert("Request enviada. Status: " + response.status);
-
-      const text = await response.text();
-      alert("Respuesta recibida: " + text);
-
-      if (!response.ok) {
-        throw new Error(text || "Error desconocido en deleteImage");
-      }
-
-      alert("Imagen eliminada con éxito ✅");
-      return true;
-    } catch (err) {
-      alert("Error en deleteImageFromStorage: " + err.message);
-      return false;
-    }
+    alert("Key calculada: " + key);
+    return key;
+  } catch (err) {
+    alert("Error al calcular key: " + err.message);
+    return null;
   }
+}
+
+// 👉 función principal para eliminar la imagen
+async function deleteImageFromStorage(url) {
+  try {
+    alert("Iniciando deleteImageFromStorage");
+    alert("URL detectada: " + url);
+
+    const key = getR2KeyFromUrl(url);
+    if (!key) throw new Error("No se pudo calcular el key");
+
+    const response = await fetch("/api/deleteImage", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key }),
+    });
+
+    alert("Request enviada. Status: " + response.status);
+
+    const text = await response.text();
+    alert("Respuesta recibida: " + text);
+
+    if (!response.ok) {
+      throw new Error(text || "Error desconocido en deleteImage");
+    }
+
+    alert("Imagen eliminada con éxito ✅");
+    return true;
+  } catch (err) {
+    alert("Error en deleteImageFromStorage: " + err.message);
+    return false;
+  }
+}
 
 
 
