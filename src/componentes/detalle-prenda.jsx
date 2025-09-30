@@ -431,6 +431,29 @@ function DetallePrenda() {
   const categoriaOptions = categorias.map((cat) => ({ value: cat, label: cat }));
   const tallaOptions = tallas.map((talla) => ({ value: talla, label: talla }));
 
+  // 🔥 BOTÓN DE PRUEBA TEMPORAL - BORRA ESTO DESPUÉS
+  const pruebaEliminarR2 = async () => {
+    const keyDePrueba = "uploads/abc123.jpg"; // ⚠️ ¡Cambia esto por una key REAL de tu R2!
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: keyDePrueba }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert("✅ ¡ÉXITO! Archivo eliminado:\n" + keyDePrueba);
+      } else {
+        alert("❌ FALLÓ:\n" + data.error + "\nKey: " + keyDePrueba);
+      }
+    } catch (err) {
+      alert("🚨 ERROR DE RED:\n" + err.message);
+    }
+  };
+
   return (
     <div className="bg-pink-100 min-h-screen">
       <header className="relative">
@@ -491,7 +514,19 @@ function DetallePrenda() {
         </div>
       ) : null}
 
+      
+
       <main className="pb-20 flex flex-center justify-center">
+        {/* 🔥 BOTÓN DE PRUEBA TEMPORAL - BORRA ESTO DESPUÉS */}
+        <button
+          type="button"
+          onClick={pruebaEliminarR2}
+          className="mt-4 py-2 px-4 bg-yellow-500 text-white rounded-md"
+        >
+          🧪 Probar eliminar de R2
+        </button>
+
+
         <form onSubmit={handleSubmit} className="lg:border-2 lg:shadow-xl px-5 lg:py-2 pb-20 mt-2 rounded-lg border-pink-200 max-w-lg w-full">
           <div className="flex flex-col justify-center my-3">
             <input
