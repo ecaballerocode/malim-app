@@ -195,16 +195,25 @@ function DetallePrenda() {
   // ✅ Función corregida: recibe la URL completa y la envía directamente
   async function deleteImageFromStorage(fotoUrl) {
     try {
+      alert("🚀 Iniciando eliminación de: " + fotoUrl);
+
       const url = `${BACKEND_URL}/api/deleteImage?url=${encodeURIComponent(fotoUrl)}`;
+      alert("🔗 URL de eliminación: " + url);
+
       const response = await fetch(url, { method: "DELETE" });
 
+      alert("✅ Respuesta recibida. Status: " + response.status);
+
       const data = await response.json();
+      alert("📦 Respuesta completa:\n" + JSON.stringify(data));
+
       if (!response.ok) {
         throw new Error(data.error || "Error desconocido en deleteImage");
       }
+
       return data;
     } catch (err) {
-      console.error("Error en deleteImageFromStorage:", err);
+      alert("❌ Error en deleteImageFromStorage: " + err.message);
       throw err;
     }
   }
