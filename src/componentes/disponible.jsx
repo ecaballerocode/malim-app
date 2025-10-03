@@ -23,17 +23,6 @@ function Disponible() {
 
   const navigate = useNavigate();
 
-  // Cloudinary
-  const CLOUDINARY_UPLOAD_PRESET = "malimapp";
-  const CLOUDINARY_CLOUD = "ds4kmouua";
-
-  const obtenerPublicId = (url) => {
-    const parts = url.split("/");
-    const publicIdWithExtension = parts[parts.length - 1];
-    const publicId = publicIdWithExtension.split(".")[0];
-    return `${parts[parts.length - 2]}/${publicId}`;
-  };
-
   // ---- ORDEN POR FECHA (desc) CON FALLBACK ----
   const toDate = (f) => {
     if (!f) return new Date("1970-01-01");
@@ -65,8 +54,7 @@ function Disponible() {
     }
   };
 
-  // Eliminar en lote (Cloudinary + Firestore)
-  // Eliminar en lote (Cloudinary + R2 + Firestore)
+  // Eliminar en lote (R2 + Firestore)
   const eliminarSeleccionados = async () => {
     const confirmDelete = window.confirm(
       `¿Seguro que deseas eliminar ${seleccionados.length} prendas seleccionadas?`
@@ -74,58 +62,22 @@ function Disponible() {
     if (!confirmDelete) return;
 
     try {
-      // Función para eliminar imágenes del storage (Cloudinary o R2)
+      // Función para eliminar imágenes del storage (solo R2)
       const deleteImageFromStorage = async (fotoUrl) => {
         try {
-          if (fotoUrl.includes("res.cloudinary.com")) {
-            console.log("Eliminando de Cloudinary:", fotoUrl);
-
-            const urlParts = fotoUrl.split('/');
-            const uploadIndex = urlParts.indexOf('upload');
-            let publicId = '';
-
-            if (uploadIndex !== -1 && urlParts.length > uploadIndex + 2) {
-              const versionPart = urlParts[uploadIndex + 1];
-              if (versionPart.startsWith('v')) {
-                publicId = urlParts.slice(uploadIndex + 2).join('/');
-              } else {
-                publicId = urlParts.slice(uploadIndex + 1).join('/');
-              }
-              publicId = publicId.replace(/\.[^/.]+$/, "");
-            }
-
-            if (!publicId) {
-              console.warn("No se pudo extraer public_id de:", fotoUrl);
-              return false;
-            }
-
-            const response = await fetch(`https://api.cloudinary.com/v1_1/ds4kmouua/image/destroy`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                public_id: publicId,
-                upload_preset: CLOUDINARY_UPLOAD_PRESET,
-              }),
-            });
-
-            if (!response.ok) {
-              throw new Error(`Cloudinary error: ${response.status}`);
-            }
-
-            console.log("Imagen de Cloudinary eliminada:", publicId);
-            return true;
-
-          } else if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
+          if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
             console.log("Eliminando de R2:", fotoUrl);
 
-            const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app";
-            const response = await fetch(`${BACKEND_URL}/api/deleteImage`, {
+            const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app").trim();
+            const encodedUrl = encodeURIComponent(fotoUrl);
+            const url = `${BACKEND_URL}/api/deleteImage?url=${encodedUrl}`;
+
+            const response = await fetch(url, {
               method: "DELETE",
               headers: {
                 "Accept": "application/json",
                 "Content-Type": "application/json"
-              },
-              body: JSON.stringify({ url: fotoUrl })
+              }
             });
 
             const result = await response.json();
@@ -151,7 +103,7 @@ function Disponible() {
           }
         } catch (error) {
           if (error.message.includes("no fue encontrada") ||
-            error.message.includes("not found")) {
+              error.message.includes("not found")) {
             console.warn("Imagen no encontrada, continuando:", fotoUrl);
             return true;
           }
