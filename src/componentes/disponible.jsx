@@ -38,20 +38,43 @@ function Disponible() {
     try {
       const q = query(collection(db, "disponible"), orderBy("fecha", "desc"));
       const querySnapshot = await getDocs(q);
-      const docsArray = querySnapshot.docs.map((docu) => ({
-        id: docu.id,
-        ...docu.data(),
-      }));
+      const docsArray = [];
+      querySnapshot.forEach((docu) => {
+        const data = docu.data();
+        // Solo incluir si tiene datos mínimos
+        if (data && typeof data === 'object') {
+          docsArray.push({
+            id: docu.id,
+            ...data
+          });
+        }
+      });
       setPrendasDisponibles(docsArray);
     } catch (error) {
       console.error("Error al cargar con orderBy, aplicando sort local:", error);
-      const querySnapshot = await getDocs(collection(db, "disponible"));
-      const docsArray = querySnapshot.docs.map((docu) => ({
-        id: docu.id,
-        ...docu.data(),
-      }));
-      docsArray.sort((a, b) => toDate(b.fecha) - toDate(a.fecha));
-      setPrendasDisponibles(docsArray);
+      try {
+        const querySnapshot = await getDocs(collection(db, "disponible"));
+        const docsArray = [];
+        querySnapshot.forEach((docu) => {
+          const data = docu.data();
+          if (data && typeof data === 'object') {
+            docsArray.push({
+              id: docu.id,
+              ...data
+            });
+          }
+        });
+        // Ordenar localmente solo si hay fecha
+        docsArray.sort((a, b) => {
+          const dateA = a.fecha ? toDate(a.fecha) : new Date(0);
+          const dateB = b.fecha ? toDate(b.fecha) : new Date(0);
+          return dateB - dateA;
+        });
+        setPrendasDisponibles(docsArray);
+      } catch (innerError) {
+        console.error("Error total al cargar prendas:", innerError);
+        setPrendasDisponibles([]); // Si todo falla, array vacío
+      }
     }
   };
 
@@ -208,10 +231,20 @@ function Disponible() {
   }));
 
   const filtrarPrendas = () => {
+    if (!Array.isArray(prendasDisponibles)) {
+      return [];
+    }
     return prendasDisponibles.filter((docu) => {
-      const coincideProveedor = !filtroProveedor || docu.proveedor === filtroProveedor.value;
-      const coincideCategoria = !filtroCategoria || docu.categoria === filtroCategoria.value;
-      const coincideBusqueda = !busqueda || (docu.prenda || "").toLowerCase().includes(busqueda.toLowerCase());
+      if (!docu || typeof docu !== 'object') return false;
+
+      const proveedorDoc = String(docu.proveedor || "").trim();
+      const categoriaDoc = String(docu.categoria || "").trim();
+      const prendaDoc = String(docu.prenda || "").toLowerCase();
+
+      const coincideProveedor = !filtroProveedor || proveedorDoc === String(filtroProveedor.value || "");
+      const coincideCategoria = !filtroCategoria || categoriaDoc === String(filtroCategoria.value || "");
+      const coincideBusqueda = !busqueda || prendaDoc.includes(String(busqueda).toLowerCase().trim());
+
       return coincideProveedor && coincideCategoria && coincideBusqueda;
     });
   };
@@ -286,95 +319,124 @@ function Disponible() {
         )}
 
         {/* lista de productos */}
+        {/* lista de productos */}
         <div className="productos-container grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mx-4 mb-5">
-          {filtrarPrendas().map((docu) => {
-            const tieneOferta = docu.oferta && docu.oferta > 0 && docu.oferta <= 100;
-            const precioOriginal = docu.precio || 0;
-            const descuento = tieneOferta ? (precioOriginal * docu.oferta) / 100 : 0;
-            const precioConDescuento = precioOriginal - descuento;
-            const precioRedondeado = roundUpToNearest5(precioConDescuento);
-
-            return (
-              <div
-                key={docu.id}
-                onClick={() => handleCardClick(docu.id)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setModoSeleccion(true);
-                  setSeleccionados((prev) => (prev.includes(docu.id) ? prev : [...prev, docu.id]));
-                }}
-                onMouseDown={() => startPress(docu.id)}
-                onMouseUp={cancelPress}
-                onMouseLeave={cancelPress}
-                onTouchStart={() => startPress(docu.id)}
-                onTouchEnd={cancelPress}
-                className={`producto rounded-xl shadow-md overflow-hidden transition-transform hover:scale-[1.02] cursor-pointer ${
-                  seleccionados.includes(docu.id)
-                    ? "ring-4 ring-red-500 bg-red-50"
-                    : "bg-white"
-                }`}
-              >
-                <div className="h-40 w-full overflow-hidden">
-                  {docu.fotos && docu.fotos.length > 0 ? (
-                    <img
-                      src={docu.fotos[0]}
-                      alt={docu.prenda || "Prenda"}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full bg-gray-100">
-                      <span className="text-gray-500 text-sm">Sin imagen</span>
-                    </div>
-                  )}
+          {(() => {
+            const prendasFiltradas = filtrarPrendas();
+            if (!Array.isArray(prendasFiltradas) || prendasFiltradas.length === 0) {
+              return (
+                <div className="col-span-full text-center py-10 text-gray-500">
+                  No hay prendas disponibles
                 </div>
+              );
+            }
 
-                <div className="p-3">
-                  <h3 className="font-bold text-pink-800 text-sm mb-1 line-clamp-2">
-                    {docu.prenda}
-                  </h3>
+            return prendasFiltradas.map((docu) => {
+              if (!docu || !docu.id) return null;
 
-                  {/* Precios */}
-                  <div className="mb-2">
-                    {tieneOferta ? (
-                      <div className="space-y-1">
-                        <p className="text-gray-500 text-sm line-through">
-                          ${precioOriginal.toFixed(2)}
-                        </p>
-                        <p className="text-lg font-bold text-green-600">
-                          ${precioRedondeado}
-                        </p>
-                        <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full">
-                          -{docu.oferta}%
-                        </span>
-                      </div>
+              // Valores seguros con fallbacks
+              const fotos = Array.isArray(docu.fotos) ? docu.fotos : [];
+              const prendaNombre = String(docu.prenda || "Sin nombre").trim() || "Sin nombre";
+              const precioOriginal = typeof docu.precio === 'number' ? docu.precio : (typeof docu.precio === 'string' ? parseFloat(docu.precio) || 0 : 0);
+              const ofertaRaw = docu.oferta;
+              let oferta = 0;
+              if (typeof ofertaRaw === 'number') {
+                oferta = ofertaRaw;
+              } else if (typeof ofertaRaw === 'string') {
+                oferta = parseFloat(ofertaRaw) || 0;
+              }
+              const tieneOferta = oferta > 0 && oferta <= 100;
+              const descuento = tieneOferta ? (precioOriginal * oferta) / 100 : 0;
+              const precioConDescuento = precioOriginal - descuento;
+              const precioRedondeado = roundUpToNearest5(precioConDescuento);
+
+              const tallaTexto = docu.talla
+                ? Array.isArray(docu.talla)
+                  ? docu.talla.join(", ")
+                  : String(docu.talla)
+                : "";
+
+              return (
+                <div
+                  key={docu.id}
+                  onClick={() => handleCardClick(docu.id)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setModoSeleccion(true);
+                    setSeleccionados((prev) => (prev.includes(docu.id) ? prev : [...prev, docu.id]));
+                  }}
+                  onMouseDown={() => startPress(docu.id)}
+                  onMouseUp={cancelPress}
+                  onMouseLeave={cancelPress}
+                  onTouchStart={() => startPress(docu.id)}
+                  onTouchEnd={cancelPress}
+                  className={`producto rounded-xl shadow-md overflow-hidden transition-transform hover:scale-[1.02] cursor-pointer ${seleccionados.includes(docu.id)
+                      ? "ring-4 ring-red-500 bg-red-50"
+                      : "bg-white"
+                    }`}
+                >
+                  <div className="h-40 w-full overflow-hidden">
+                    {fotos.length > 0 ? (
+                      <img
+                        src={fotos[0]}
+                        alt={prendaNombre}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23ccc' d='M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z'/%3E%3C/svg%3E";
+                        }}
+                      />
                     ) : (
-                      <p className="text-lg font-bold text-pink-700">
-                        ${precioOriginal}
-                      </p>
+                      <div className="flex items-center justify-center h-full bg-gray-100">
+                        <span className="text-gray-500 text-sm">Sin imagen</span>
+                      </div>
                     )}
                   </div>
 
-                  {/* Detalles compactos */}
-                  <div className="text-xs text-gray-600 space-y-0.5">
-                    {docu.talla && (
-                      <p className="truncate">
-                        <span className="font-medium">Talla:</span>{" "}
-                        {Array.isArray(docu.talla) ? docu.talla.join(", ") : docu.talla}
-                      </p>
-                    )}
-                    {docu.proveedor && (
-                      <p className="truncate">
-                        <span className="font-medium">Prov:</span> {docu.proveedor}
-                      </p>
-                    )}
-                    {docu.detalles && (
-                      <p className="truncate text-gray-500">{docu.detalles}</p>
-                    )}
+                  <div className="p-3">
+                    <h3 className="font-bold text-pink-800 text-sm mb-1 line-clamp-2">
+                      {prendaNombre}
+                    </h3>
+
+                    <div className="mb-2">
+                      {tieneOferta ? (
+                        <div className="space-y-1">
+                          <p className="text-gray-500 text-sm line-through">
+                            ${precioOriginal.toFixed(2)}
+                          </p>
+                          <p className="text-lg font-bold text-green-600">
+                            ${precioRedondeado}
+                          </p>
+                          <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full">
+                            -{Math.round(oferta)}%
+                          </span>
+                        </div>
+                      ) : (
+                        <p className="text-lg font-bold text-pink-700">
+                          ${precioOriginal}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="text-xs text-gray-600 space-y-0.5">
+                      {tallaTexto && (
+                        <p className="truncate">
+                          <span className="font-medium">Talla:</span> {tallaTexto}
+                        </p>
+                      )}
+                      {docu.proveedor && (
+                        <p className="truncate">
+                          <span className="font-medium">Prov:</span> {String(docu.proveedor)}
+                        </p>
+                      )}
+                      {docu.detalles && (
+                        <p className="truncate text-gray-500">{String(docu.detalles)}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            }).filter(Boolean); // Elimina nulls
+          })()}
         </div>
       </main>
 

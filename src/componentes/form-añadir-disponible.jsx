@@ -45,10 +45,10 @@ function FormAñadirDisponible() {
 
   const categorias = [
     "Abrigos", "Accesorios", "Patria", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
-    "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas", "Maxi vestidos", "Maxi cobijas", 
+    "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas", "Maxi vestidos", "Maxi cobijas",
     "Ensambles", "Pantalones", "Pants", "Shorts", "Infantil niño", "Infantil niña", "Medias", "Leggins",
-    "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos", "Camisas", "Gorros", "Calzado", 
-    "Chalecos", "Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres", "Overoles", "Otros", "Sin Categoria", 
+    "Mallones", "Ropa interior", "Sacos", "Blazers", "Capas", "Palazzos", "Camisas", "Gorros", "Calzado",
+    "Chalecos", "Blusones", "Pijamas", "Guantes", "Faldas", "Suéteres", "Overoles", "Otros", "Sin Categoria",
     "Niños uisex", "Gabardinas", "Vestidos"
   ];
 
@@ -140,7 +140,7 @@ function FormAñadirDisponible() {
   const uploadImageBatch = async (filesBatch, batchNumber) => {
     try {
       const uploadFormData = new FormData();
-      
+
       filesBatch.forEach((file, index) => {
         const fileName = `malim-${Date.now()}-${batchNumber}-${index}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
         uploadFormData.append("files", file, fileName);
@@ -164,7 +164,7 @@ function FormAñadirDisponible() {
       }
 
       const data = await response.json();
-      
+
       if (data && data.urls && Array.isArray(data.urls)) {
         return data.urls;
       } else {
@@ -180,11 +180,11 @@ function FormAñadirDisponible() {
   // ✅ FUNCIÓN PRINCIPAL QUE MANEJA LOTES DE MÁXIMO 2 IMÁGENES
   const uploadAllImages = async (files) => {
     if (files.length === 0) return [];
-    
+
     // Dividir en lotes de máximo 2 imágenes
     const batchSize = 2;
     const batches = [];
-    
+
     for (let i = 0; i < files.length; i += batchSize) {
       batches.push(files.slice(i, i + batchSize));
     }
@@ -196,14 +196,14 @@ function FormAñadirDisponible() {
       try {
         const batchUrls = await uploadImageBatch(batches[i], i);
         allUrls.push(...batchUrls);
-        
+
         setUploadProgress({ current: i + 1, total: batches.length });
-        
+
         // Pequeña pausa entre lotes para no saturar el backend
         if (i < batches.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 800));
         }
-        
+
       } catch (error) {
         throw new Error(`Fallo en lote ${i + 1}/${batches.length}: ${error.message}`);
       }
@@ -215,7 +215,7 @@ function FormAñadirDisponible() {
   // ✅ HANDLE SUBMIT CON MANEJO ROBUSTO DE ERRORES
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (fotos.length > 12) {
       alert("⚠️ Máximo 12 imágenes permitidas por producto");
       return;
@@ -253,7 +253,7 @@ function FormAñadirDisponible() {
         talla: formData.talla,
         categoria: formData.categoria ? formData.categoria.value : "",
         proveedor: formData.proveedor ? formData.proveedor.label : "",
-        oferta: formData.oferta ? formData.oferta.value : 0, // ← Guarda 0 si no hay oferta
+        oferta: formData.oferta?.value || 0, // ✅ guardar número
         fotos: uploadedUrls,
         fecha: fecha || new Date().toISOString().split("T")[0],
         fechaCreacion: new Date(),
@@ -320,7 +320,7 @@ function FormAñadirDisponible() {
             Subiendo imágenes... {uploadProgress.current}/{uploadProgress.total} lotes
           </p>
           <div className="w-64 bg-gray-200 rounded-full h-2">
-            <div 
+            <div
               className="bg-pink-500 h-2 rounded-full transition-all"
               style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
             ></div>
@@ -475,15 +475,16 @@ function FormAñadirDisponible() {
 
           <div className="flex flex-col pt-2">
             <label className="px-2 text-pink-800 font-bold">Detalles y colores:</label>
-            <input
-              type="text"
+            <textarea
               name="detalles"
-              placeholder="Detalles de la prenda"
+              placeholder="Detalles de la prenda (ej. color, material, etc.)"
               value={formData.detalles}
               onChange={handleChange}
-              className="px-2 rounded-md h-8 shadow-sm"
+              rows={4} // ✅ más alto
+              className="px-2 py-1 rounded-md shadow-sm resize-y"
             />
           </div>
+
 
           <div className="flex justify-center pt-2">
             <button
