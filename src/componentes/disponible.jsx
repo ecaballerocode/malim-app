@@ -9,6 +9,11 @@ import Select from "react-select";
 import { useNavigate } from "react-router-dom";
 import { FaTrash } from "react-icons/fa";
 
+// ✅ Función para redondear al múltiplo de 5 más cercano hacia arriba
+const roundUpToNearest5 = (num) => {
+  return Math.ceil(num / 5) * 5;
+};
+
 function Disponible() {
   const [menuAbierto, setmenuAbierto] = useState(false);
   const [menuAñadir, setmenuAñadir] = useState(false);
@@ -19,16 +24,13 @@ function Disponible() {
   const [busqueda, setBusqueda] = useState("");
 
   const [modoSeleccion, setModoSeleccion] = useState(false);
-  const [seleccionados, setSeleccionados] = useState([]); // IDs seleccionados
+  const [seleccionados, setSeleccionados] = useState([]);
 
   const navigate = useNavigate();
 
-  // ---- ORDEN POR FECHA (desc) CON FALLBACK ----
   const toDate = (f) => {
     if (!f) return new Date("1970-01-01");
-    // Firestore Timestamp
     if (typeof f === "object" && f.seconds) return new Date(f.seconds * 1000);
-    // ISO string o similar
     return new Date(f);
   };
 
@@ -43,7 +45,6 @@ function Disponible() {
       setPrendasDisponibles(docsArray);
     } catch (error) {
       console.error("Error al cargar con orderBy, aplicando sort local:", error);
-      // Fallback: sin orderBy, ordenamos en cliente
       const querySnapshot = await getDocs(collection(db, "disponible"));
       const docsArray = querySnapshot.docs.map((docu) => ({
         id: docu.id,
@@ -54,7 +55,7 @@ function Disponible() {
     }
   };
 
-  // Eliminar en lote (R2 + Firestore)
+  // Eliminar en lote (R2 + Firestore) → igual que antes
   const eliminarSeleccionados = async () => {
     const confirmDelete = window.confirm(
       `¿Seguro que deseas eliminar ${seleccionados.length} prendas seleccionadas?`
@@ -62,12 +63,9 @@ function Disponible() {
     if (!confirmDelete) return;
 
     try {
-      // Función para eliminar imágenes del storage (solo R2)
       const deleteImageFromStorage = async (fotoUrl) => {
         try {
           if (fotoUrl.includes("r2.dev") || fotoUrl.includes("pub-")) {
-            console.log("Eliminando de R2:", fotoUrl);
-
             const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app").trim();
             const encodedUrl = encodeURIComponent(fotoUrl);
             const url = `${BACKEND_URL}/api/deleteImage?url=${encodedUrl}`;
@@ -96,14 +94,12 @@ function Disponible() {
 
             console.log("Imagen de R2 eliminada:", fotoUrl);
             return true;
-
           } else {
             console.warn("URL de imagen no reconocida, no se elimina:", fotoUrl);
             return true;
           }
         } catch (error) {
-          if (error.message.includes("no fue encontrada") ||
-              error.message.includes("not found")) {
+          if (error.message.includes("no fue encontrada") || error.message.includes("not found")) {
             console.warn("Imagen no encontrada, continuando:", fotoUrl);
             return true;
           }
@@ -112,25 +108,21 @@ function Disponible() {
         }
       };
 
-      // Procesar cada prenda seleccionada
       await Promise.all(
         seleccionados.map(async (id) => {
           const prenda = prendasDisponibles.find((p) => p.id === id);
           if (!prenda) return;
 
-          // Eliminar imágenes del storage (manejar errores individualmente)
           if (prenda.fotos && prenda.fotos.length > 0) {
             const deletePromises = prenda.fotos.map(fotoUrl =>
-              deleteImageFromStorage(fotoUrl)
-                .catch(error => {
-                  console.warn(`Error eliminando imagen ${fotoUrl}:`, error.message);
-                  return true; // Continuar aunque falle una imagen
-                })
+              deleteImageFromStorage(fotoUrl).catch(error => {
+                console.warn(`Error eliminando imagen ${fotoUrl}:`, error.message);
+                return true;
+              })
             );
             await Promise.all(deletePromises);
           }
 
-          // Eliminar documento de Firestore
           await deleteDoc(doc(db, "disponible", id));
         })
       );
@@ -138,8 +130,7 @@ function Disponible() {
       alert("Prendas eliminadas con éxito");
       setSeleccionados([]);
       setModoSeleccion(false);
-      await fetchDocuments(); // Recargar la lista
-
+      await fetchDocuments();
     } catch (error) {
       console.error("Error eliminando prendas:", error);
       alert("Error eliminando algunas prendas");
@@ -156,7 +147,6 @@ function Disponible() {
     }
   };
 
-  // ---- Long-press (click sostenido) para activar selección en móvil/desktop ----
   const pressTimerRef = useRef(null);
   const longPressTriggeredRef = useRef(false);
   const LONG_PRESS_MS = 2000;
@@ -176,7 +166,6 @@ function Disponible() {
   };
 
   const handleCardClick = (id) => {
-    // Si el long-press activó selección, evitamos navegar/togglear doble
     if (longPressTriggeredRef.current) {
       longPressTriggeredRef.current = false;
       return;
@@ -184,12 +173,10 @@ function Disponible() {
     manejarClickPrenda(id);
   };
 
-  // Cargar prendas
   useEffect(() => {
     fetchDocuments();
   }, []);
 
-  // Cargar proveedores
   useEffect(() => {
     const fetchProveedores = async () => {
       try {
@@ -206,7 +193,6 @@ function Disponible() {
     fetchProveedores();
   }, []);
 
-  // Filtros
   const categoriaOptions = [
     "Abrigos", "Accesorios", "Patria", "Blusas", "Playeras", "Playeras deportivas", "Conjuntos",
     "Conjuntos deportivos", "Chamarras", "Sudaderas", "Maxi sudaderas", "Maxi vestidos", "Maxi cobijas",
@@ -230,7 +216,6 @@ function Disponible() {
     });
   };
 
-  // UI: barra pequeña cuando hay selección activa
   const limpiarSeleccion = () => {
     setSeleccionados([]);
     setModoSeleccion(false);
@@ -247,18 +232,30 @@ function Disponible() {
 
       <main className="pb-16 pt-10">
         {/* filtros */}
-        <div className="flex lg:flex-row flex-col justify-between">
-          <div className="lg:p-5 px-5 pt-2 flex flex-row items-center gap-2">
-            <h1 className="font-bold lg:text-sm text-xs text-pink-800 mr-2">Filtrar por:</h1>
-            <Select options={proveedoresOptions} onChange={setFiltroProveedor} isClearable placeholder="Proveedor" />
-            <Select options={categoriaOptions} onChange={setFiltroCategoria} isClearable placeholder="Categoría" />
+        <div className="flex lg:flex-row flex-col justify-between px-5 mb-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-bold text-sm text-pink-800">Filtrar por:</span>
+            <Select
+              options={proveedoresOptions}
+              onChange={setFiltroProveedor}
+              isClearable
+              placeholder="Proveedor"
+              className="w-40"
+            />
+            <Select
+              options={categoriaOptions}
+              onChange={setFiltroCategoria}
+              isClearable
+              placeholder="Categoría"
+              className="w-40"
+            />
           </div>
-          <div className="lg:p-5 px-5 pt-1 pb-2 flex flex-row items-center">
-            <h1 className="font-bold lg:text-sm text-xs text-pink-800 mr-2">Búsqueda:</h1>
+          <div className="flex items-center mt-2 lg:mt-0">
+            <span className="font-bold text-sm text-pink-800 mr-2">Búsqueda:</span>
             <input
               type="text"
-              placeholder="Buscar"
-              className="h-10 rounded-lg p-2 border-gray-200 border-2"
+              placeholder="Buscar prenda..."
+              className="h-10 rounded-lg p-2 border border-pink-300 focus:outline-none focus:ring-2 focus:ring-pink-400"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
             />
@@ -289,58 +286,102 @@ function Disponible() {
         )}
 
         {/* lista de productos */}
-        <div className="productos-container bg-pink-100 grid grid-cols-2 lg:grid-cols-5 lg:gap-3 gap-3 mx-5 mb-5">
-          {filtrarPrendas().map((docu) => (
-            <div
-              key={docu.id}
-              onClick={() => handleCardClick(docu.id)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                // click derecho activa selección
-                setModoSeleccion(true);
-                setSeleccionados((prev) => (prev.includes(docu.id) ? prev : [...prev, docu.id]));
-              }}
-              onMouseDown={() => startPress(docu.id)}
-              onMouseUp={cancelPress}
-              onMouseLeave={cancelPress}
-              onTouchStart={() => startPress(docu.id)}
-              onTouchEnd={cancelPress}
-              className={`producto h-auto border-2 rounded-lg shadow-xl cursor-pointer transition ${seleccionados.includes(docu.id) ? "border-red-500 bg-red-100" : "border-pink-200"
+        <div className="productos-container grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mx-4 mb-5">
+          {filtrarPrendas().map((docu) => {
+            const tieneOferta = docu.oferta && docu.oferta > 0 && docu.oferta <= 100;
+            const precioOriginal = docu.precio || 0;
+            const descuento = tieneOferta ? (precioOriginal * docu.oferta) / 100 : 0;
+            const precioConDescuento = precioOriginal - descuento;
+            const precioRedondeado = roundUpToNearest5(precioConDescuento);
+
+            return (
+              <div
+                key={docu.id}
+                onClick={() => handleCardClick(docu.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setModoSeleccion(true);
+                  setSeleccionados((prev) => (prev.includes(docu.id) ? prev : [...prev, docu.id]));
+                }}
+                onMouseDown={() => startPress(docu.id)}
+                onMouseUp={cancelPress}
+                onMouseLeave={cancelPress}
+                onTouchStart={() => startPress(docu.id)}
+                onTouchEnd={cancelPress}
+                className={`producto rounded-xl shadow-md overflow-hidden transition-transform hover:scale-[1.02] cursor-pointer ${
+                  seleccionados.includes(docu.id)
+                    ? "ring-4 ring-red-500 bg-red-50"
+                    : "bg-white"
                 }`}
-            >
-              <div className="lg:h-64 h-40 w-full rounded-lg overflow-hidden">
-                {docu.fotos && docu.fotos.length > 0 ? (
-                  <img
-                    src={docu.fotos[0]}
-                    alt="Foto del producto"
-                    className="lg:h-64 h-40 w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex items-center h-full justify-center">
-                    <p className="text-center text-gray-600 font-sm">Sin fotos</p>
-                  </div>
-                )}
-              </div>
-              <div className="p-2 text-pink-600">
-                <p className="font-bold lg:text-sm text-pink-700">{docu.prenda}</p>
-                <div className="flex flex-row justify-start">
-                  <p className="lg:text-sm">${docu.costo}</p>
-                  <p className="font-bold lg:text-sm ml-5 text-pink-700">${docu.precio}</p>
+              >
+                <div className="h-40 w-full overflow-hidden">
+                  {docu.fotos && docu.fotos.length > 0 ? (
+                    <img
+                      src={docu.fotos[0]}
+                      alt={docu.prenda || "Prenda"}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full bg-gray-100">
+                      <span className="text-gray-500 text-sm">Sin imagen</span>
+                    </div>
+                  )}
                 </div>
-                <p className="lg:text-sm">{Array.isArray(docu.talla) ? docu.talla.join(", ") : docu.talla}</p>
-                <p className="lg:text-sm">{docu.proveedor}</p>
-                <p className="lg:text-xs">{docu.detalles}</p>
+
+                <div className="p-3">
+                  <h3 className="font-bold text-pink-800 text-sm mb-1 line-clamp-2">
+                    {docu.prenda}
+                  </h3>
+
+                  {/* Precios */}
+                  <div className="mb-2">
+                    {tieneOferta ? (
+                      <div className="space-y-1">
+                        <p className="text-gray-500 text-sm line-through">
+                          ${precioOriginal.toFixed(2)}
+                        </p>
+                        <p className="text-lg font-bold text-green-600">
+                          ${precioRedondeado}
+                        </p>
+                        <span className="inline-block bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full">
+                          -{docu.oferta}%
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-lg font-bold text-pink-700">
+                        ${precioOriginal}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Detalles compactos */}
+                  <div className="text-xs text-gray-600 space-y-0.5">
+                    {docu.talla && (
+                      <p className="truncate">
+                        <span className="font-medium">Talla:</span>{" "}
+                        {Array.isArray(docu.talla) ? docu.talla.join(", ") : docu.talla}
+                      </p>
+                    )}
+                    {docu.proveedor && (
+                      <p className="truncate">
+                        <span className="font-medium">Prov:</span> {docu.proveedor}
+                      </p>
+                    )}
+                    {docu.detalles && (
+                      <p className="truncate text-gray-500">{docu.detalles}</p>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </main>
 
-      {/* botón eliminar flotante */}
       {seleccionados.length > 0 && (
         <button
           onClick={eliminarSeleccionados}
-          className="fixed bottom-20 right-5 bg-red-600 text-white p-4 rounded-full shadow-xl active:scale-95"
+          className="fixed bottom-20 right-5 bg-red-600 text-white p-4 rounded-full shadow-xl active:scale-95 hover:bg-red-700 transition"
           aria-label="Eliminar seleccionados"
           title="Eliminar seleccionados"
         >

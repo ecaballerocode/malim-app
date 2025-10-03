@@ -66,45 +66,55 @@ function DetallePrenda() {
   }));
 
   useEffect(() => {
-    const fetchPrenda = async () => {
-      try {
-        const prendaRef = doc(db, "disponible", id);
-        const prendaDoc = await getDoc(prendaRef);
+  if (!id) {
+    console.error("ID no proporcionado en la URL");
+    navigate("/Disponible");
+    return;
+  }
 
-        if (prendaDoc.exists()) {
-          const data = prendaDoc.data();
-          setFormData({
-            prenda: data.prenda,
-            detalles: data.detalles,
-            costo: data.costo,
-            precio: data.precio,
-            talla: data.talla,
-            categoria: { value: data.categoria, label: data.categoria },
-            proveedor: { value: data.proveedor, label: data.proveedor },
-            fotos: data.fotos || [],
-          });
-        }
-      } catch (error) {
-        console.error("Error al obtener la prenda:", error);
+  const fetchPrenda = async () => {
+    try {
+      const prendaRef = doc(db, "disponible", id);
+      const prendaDoc = await getDoc(prendaRef);
+
+      if (prendaDoc.exists()) {
+        const data = prendaDoc.data();
+        setFormData({
+          prenda: data.prenda,
+          detalles: data.detalles,
+          costo: data.costo,
+          precio: data.precio,
+          talla: data.talla,
+          categoria: { value: data.categoria, label: data.categoria },
+          proveedor: { value: data.proveedor, label: data.proveedor },
+          fotos: data.fotos || [],
+        });
+      } else {
+        console.warn("Prenda no encontrada:", id);
+        navigate("/Disponible");
       }
-    };
+    } catch (error) {
+      console.error("Error al obtener la prenda:", error);
+      navigate("/Disponible");
+    }
+  };
 
-    const fetchProveedores = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "proveedores"));
-        const docsArray = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setProveedores(docsArray);
-      } catch (error) {
-        console.error("Error al cargar los proveedores", error);
-      }
-    };
+  const fetchProveedores = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, "proveedores"));
+      const docsArray = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setProveedores(docsArray);
+    } catch (error) {
+      console.error("Error al cargar los proveedores", error);
+    }
+  };
 
-    fetchPrenda();
-    fetchProveedores();
-  }, [id]);
+  fetchPrenda();
+  fetchProveedores();
+}, [id, navigate]);
 
   const uploadImageBatch = async (filesBatch, batchNumber) => {
     try {

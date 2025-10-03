@@ -16,6 +16,7 @@ function FormAñadirDisponible() {
     talla: [],
     categoria: null,
     proveedor: null,
+    oferta: null, // ← Nuevo campo
   });
 
   const [fotos, setFotos] = useState([]);
@@ -27,7 +28,7 @@ function FormAñadirDisponible() {
   const [fecha, setFecha] = useState("");
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
 
-  const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app";
+  const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app").trim();
 
   const manejadorMenu = () => {
     setmenuAbierto(!menuAbierto);
@@ -56,6 +57,15 @@ function FormAñadirDisponible() {
     "(32-36)", "(32-34)", "(34-36)", "(36-38)", "(38-40)", "(40-42)", "Unitalla", "(5)", "(7)", "(9)",
     "(11)", "(13)", "(15)", "(17)", "(4)", "(6)", "(8)", "(10)", "(12)", "(14)", "(16)", "(28)", "(30)",
     "(32)", "(34)", "(36)", "(38)", "(40)", "(42)"
+  ];
+
+  // ✅ Generar opciones de oferta: 5%, 10%, ..., 100%
+  const ofertaOptions = [
+    { value: null, label: "Sin oferta" },
+    ...Array.from({ length: 20 }, (_, i) => {
+      const percent = (i + 1) * 5;
+      return { value: percent, label: `${percent}%` };
+    })
   ];
 
   const categoriaOptions = categorias.map((cat) => ({
@@ -120,6 +130,10 @@ function FormAñadirDisponible() {
 
   const handleProveedorChange = (selectedOption) => {
     setFormData({ ...formData, proveedor: selectedOption });
+  };
+
+  const handleOfertaChange = (selectedOption) => {
+    setFormData({ ...formData, oferta: selectedOption });
   };
 
   // ✅ FUNCIÓN PARA SUBIR UN LOTE DE IMÁGENES (MÁXIMO 2 POR LOTE)
@@ -239,6 +253,7 @@ function FormAñadirDisponible() {
         talla: formData.talla,
         categoria: formData.categoria ? formData.categoria.value : "",
         proveedor: formData.proveedor ? formData.proveedor.label : "",
+        oferta: formData.oferta ? formData.oferta.value : 0, // ← Guarda 0 si no hay oferta
         fotos: uploadedUrls,
         fecha: fecha || new Date().toISOString().split("T")[0],
         fechaCreacion: new Date(),
@@ -254,6 +269,7 @@ function FormAñadirDisponible() {
         talla: [],
         categoria: null,
         proveedor: null,
+        oferta: null, // ← Reiniciar
       });
       setFotos([]);
       setPreviewUrls([]);
@@ -409,6 +425,18 @@ function FormAñadirDisponible() {
               onChange={handleChange}
               required
               className="px-2 rounded-md h-8 shadow-sm"
+            />
+          </div>
+
+          {/* ✅ NUEVO CAMPO: OFERTA */}
+          <div className="flex flex-col pt-2">
+            <label className="px-2 text-pink-800 font-bold">Oferta:</label>
+            <Select
+              options={ofertaOptions}
+              value={formData.oferta}
+              onChange={handleOfertaChange}
+              isClearable={false} // No permitir borrar, siempre debe haber una opción
+              placeholder="Seleccionar descuento"
             />
           </div>
 
