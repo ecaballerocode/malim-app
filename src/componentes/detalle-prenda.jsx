@@ -14,6 +14,8 @@ import MenuAñadir from "./menu-añadir";
 function DetallePrenda() {
   const { id } = useParams();
   const navigate = useNavigate();
+
+  // Incluimos 'oferta' en el estado
   const [formData, setFormData] = useState({
     prenda: "",
     detalles: "",
@@ -22,8 +24,10 @@ function DetallePrenda() {
     talla: [],
     categoria: null,
     proveedor: null,
+    oferta: null, // ← Nuevo campo
     fotos: [],
   });
+
   const [loading, setLoading] = useState(false);
   const [proveedores, setProveedores] = useState([]);
   const [menuAbierto, setmenuAbierto] = useState(false);
@@ -56,6 +60,15 @@ function DetallePrenda() {
     "(32)", "(34)", "(36)", "(38)", "(40)", "(42)"
   ];
 
+  // ✅ Opciones de oferta: 5%, 10%, ..., 100% + "Sin oferta"
+  const ofertaOptions = [
+    { value: null, label: "Sin oferta" },
+    ...Array.from({ length: 20 }, (_, i) => {
+      const percent = (i + 1) * 5;
+      return { value: percent, label: `${percent}%` };
+    })
+  ];
+
   const manejarClickVender = (id) => {
     navigate(`/FormVender/${id}`);
   };
@@ -66,55 +79,56 @@ function DetallePrenda() {
   }));
 
   useEffect(() => {
-  if (!id) {
-    console.error("ID no proporcionado en la URL");
-    navigate("/Disponible");
-    return;
-  }
+    if (!id) {
+      console.error("ID no proporcionado en la URL");
+      navigate("/Disponible");
+      return;
+    }
 
-  const fetchPrenda = async () => {
-    try {
-      const prendaRef = doc(db, "disponible", id);
-      const prendaDoc = await getDoc(prendaRef);
+    const fetchPrenda = async () => {
+      try {
+        const prendaRef = doc(db, "disponible", id);
+        const prendaDoc = await getDoc(prendaRef);
 
-      if (prendaDoc.exists()) {
-        const data = prendaDoc.data();
-        setFormData({
-          prenda: data.prenda,
-          detalles: data.detalles,
-          costo: data.costo,
-          precio: data.precio,
-          talla: data.talla,
-          categoria: { value: data.categoria, label: data.categoria },
-          proveedor: { value: data.proveedor, label: data.proveedor },
-          fotos: data.fotos || [],
-        });
-      } else {
-        console.warn("Prenda no encontrada:", id);
+        if (prendaDoc.exists()) {
+          const data = prendaDoc.data();
+          setFormData({
+            prenda: data.prenda,
+            detalles: data.detalles,
+            costo: data.costo,
+            precio: data.precio,
+            talla: data.talla,
+            categoria: { value: data.categoria, label: data.categoria },
+            proveedor: { value: data.proveedor, label: data.proveedor },
+            oferta: data.oferta ? { value: data.oferta, label: `${data.oferta}%` } : null, // ← Cargar oferta
+            fotos: data.fotos || [],
+          });
+        } else {
+          console.warn("Prenda no encontrada:", id);
+          navigate("/Disponible");
+        }
+      } catch (error) {
+        console.error("Error al obtener la prenda:", error);
         navigate("/Disponible");
       }
-    } catch (error) {
-      console.error("Error al obtener la prenda:", error);
-      navigate("/Disponible");
-    }
-  };
+    };
 
-  const fetchProveedores = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, "proveedores"));
-      const docsArray = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setProveedores(docsArray);
-    } catch (error) {
-      console.error("Error al cargar los proveedores", error);
-    }
-  };
+    const fetchProveedores = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "proveedores"));
+        const docsArray = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setProveedores(docsArray);
+      } catch (error) {
+        console.error("Error al cargar los proveedores", error);
+      }
+    };
 
-  fetchPrenda();
-  fetchProveedores();
-}, [id, navigate]);
+    fetchPrenda();
+    fetchProveedores();
+  }, [id, navigate]);
 
   const uploadImageBatch = async (filesBatch, batchNumber) => {
     try {
@@ -190,8 +204,9 @@ function DetallePrenda() {
     try {
       await updateDoc(prendaRef, {
         ...formData,
-        categoria: formData.categoria.value,
-        proveedor: formData.proveedor.value,
+        categoria: formData.categoria?.value || "",
+        proveedor: formData.proveedor?.value || "",
+        oferta: formData.oferta?.value || 0, // ← Guardar 0 si no hay oferta
       });
       alert("Prenda actualizada con éxito");
     } catch (error) {
@@ -202,25 +217,15 @@ function DetallePrenda() {
     }
   };
 
-  // ✅ Función corregida: recibe la URL completa y la envía directamente
   async function deleteImageFromStorage(fotoUrl) {
     try {
-     
-
       const url = `${BACKEND_URL}/api/deleteImage?url=${encodeURIComponent(fotoUrl)}`;
-     
-
       const response = await fetch(url, { method: "DELETE" });
-
-     
-
       const data = await response.json();
-      alert("📦 Respuesta completa:\n" + JSON.stringify(data));
 
       if (!response.ok) {
         throw new Error(data.error || "Error desconocido en deleteImage");
       }
-
       return data;
     } catch (err) {
       alert("❌ Error en deleteImageFromStorage: " + err.message);
@@ -234,9 +239,6 @@ function DetallePrenda() {
 
     try {
       setLoading(true);
-      console.log("Iniciando eliminación de prenda:", id);
-
-      // ✅ Pasamos la URL directamente, sin extraer key
       const deletePromises = formData.fotos.map(fotoUrl =>
         deleteImageFromStorage(fotoUrl).catch(error => {
           console.warn(`Error eliminando imagen ${fotoUrl}:`, error.message);
@@ -295,9 +297,13 @@ function DetallePrenda() {
     setFormData({ ...formData, proveedor: selectedOption });
   };
 
+  const handleOfertaChange = (selectedOption) => {
+    setFormData({ ...formData, oferta: selectedOption });
+  };
+
   const enviarWhatsapp = (id) => {
     const message = encodeURIComponent("Conoce nuestras prendas aqui: ");
-    const urlId = encodeURIComponent(`https://malim-shop.vercel.app/DetallePrenda/${id}`);
+    const urlId = encodeURIComponent(`https://malim-shop.vercel.app/DetallePrenda/${id}`); // ← sin espacios
     const url = `https://wa.me/?text=${message}${urlId}`;
     window.open(url, "_blank");
   };
@@ -346,6 +352,15 @@ function DetallePrenda() {
 
   const categoriaOptions = categorias.map((cat) => ({ value: cat, label: cat }));
   const tallaOptions = tallas.map((talla) => ({ value: talla, label: talla }));
+
+  // Protección temprana si no hay ID
+  if (!id) {
+    return (
+      <div className="min-h-screen bg-pink-100 flex items-center justify-center">
+        <p className="text-pink-800 text-lg">ID de prenda no válido</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-pink-100 min-h-screen">
@@ -462,6 +477,18 @@ function DetallePrenda() {
             />
           </div>
 
+          {/* ✅ NUEVO CAMPO: OFERTA */}
+          <div className="flex flex-col pt-2">
+            <label className="px-2 text-pink-800 font-bold">Oferta:</label>
+            <Select
+              options={ofertaOptions}
+              value={formData.oferta}
+              onChange={handleOfertaChange}
+              isClearable={false}
+              placeholder="Seleccionar descuento"
+            />
+          </div>
+
           <div className="flex flex-col pt-2">
             <label className="px-2 text-pink-800 font-bold">Talla:</label>
             <Select
@@ -507,7 +534,7 @@ function DetallePrenda() {
             />
           </div>
 
-          <div className="flex flex-col justify-around">
+          <div className="flex flex-col justify-around mt-4">
             <button
               type="submit"
               className="mt-2 py-2 px-4 bg-pink-400 text-white rounded-md cursor-pointer hover:bg-pink-200"
