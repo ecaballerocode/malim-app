@@ -30,9 +30,7 @@ function DetallePrenda() {
   const [menuAñadir, setmenuAñadir] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
 
-  // 🔥 CORRECCIÓN: Eliminamos los espacios al final de la URL
   const BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app").trim();
-
 
   const manejadorMenu = () => {
     setmenuAbierto(!menuAbierto);
@@ -139,7 +137,6 @@ function DetallePrenda() {
       } else {
         throw new Error(`Formato de respuesta inválido en lote ${batchNumber + 1}`);
       }
-
     } catch (error) {
       console.error(`Error en lote ${batchNumber + 1}:`, error);
       throw error;
@@ -195,69 +192,22 @@ function DetallePrenda() {
     }
   };
 
-  const CLOUDINARY_UPLOAD_PRESET = "malimapp";
-
-  // 🔥 FUNCIÓN CORREGIDA PARA ELIMINAR DE R2
-  // 👉 helper para extraer el key desde la URL de R2
-  function extractR2KeyFromUrl(urlString) {
+  // ✅ Función corregida: recibe la URL completa y la envía directamente
+  async function deleteImageFromStorage(fotoUrl) {
     try {
-      const u = new URL(urlString);
-      let key = u.pathname.startsWith("/") ? u.pathname.slice(1) : u.pathname;
-      key = decodeURIComponent(key);
-
-      // Si por alguna razón la URL incluye el bucket en el path, elimínalo:
-      const bucket = "malim-bucket"; // pon aquí el nombre exacto de tu bucket
-      if (key.startsWith(bucket + "/")) {
-        key = key.slice(bucket.length + 1);
-      }
-
-      console.log("[extractR2KeyFromUrl] url:", urlString, "-> key:", key);
-      return key;
-    } catch (err) {
-      console.error("[extractR2KeyFromUrl] error:", err, urlString);
-      return null;
-    }
-  }
-
-
-  // 👉 función principal para eliminar la imagen
-
-  async function deleteImageFromStorage(key) {
-    try {
-      alert("Key calculada: " + key);
-
-      const url = `${BACKEND_URL}/api/deleteImage?key=${encodeURIComponent(key)}`;
-      alert("Enviando DELETE a: " + url);
-
-      const response = await fetch(url, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      alert("Request enviada. Status: " + response.status);
+      const url = `${BACKEND_URL}/api/deleteImage?url=${encodeURIComponent(fotoUrl)}`;
+      const response = await fetch(url, { method: "DELETE" });
 
       const data = await response.json();
-      alert("Respuesta recibida:\n" + JSON.stringify(data));
-
       if (!response.ok) {
         throw new Error(data.error || "Error desconocido en deleteImage");
       }
-
       return data;
     } catch (err) {
-      alert("Error en deleteImageFromStorage: " + err.message);
+      console.error("Error en deleteImageFromStorage:", err);
       throw err;
     }
   }
-
-
-
-
-
-
-
 
   const handleDelete = async () => {
     const confirmDelete = window.confirm("¿Estás seguro de que deseas eliminar esta prenda?");
@@ -267,23 +217,19 @@ function DetallePrenda() {
       setLoading(true);
       console.log("Iniciando eliminación de prenda:", id);
 
-
-      const deletePromises = formData.fotos.map(fotoUrl => {
-        const key = extractR2KeyFromUrl(fotoUrl);
-        return deleteImageFromStorage(key)
-          .catch(error => {
-            console.warn(`Error eliminando imagen ${fotoUrl}:`, error.message);
-            return true;
-          });
-      });
-
+      // ✅ Pasamos la URL directamente, sin extraer key
+      const deletePromises = formData.fotos.map(fotoUrl =>
+        deleteImageFromStorage(fotoUrl).catch(error => {
+          console.warn(`Error eliminando imagen ${fotoUrl}:`, error.message);
+          return true;
+        })
+      );
 
       await Promise.all(deletePromises);
       await deleteDoc(doc(db, "disponible", id));
 
       alert("✅ Prenda eliminada con éxito");
       navigate("/Disponible");
-
     } catch (error) {
       console.error("Error general al eliminar la prenda:", error);
       alert("❌ Error al eliminar la prenda: " + error.message);
@@ -298,20 +244,14 @@ function DetallePrenda() {
 
     try {
       setLoading(true);
-      const key = extractR2KeyFromUrl(fotoUrl);
-      await deleteImageFromStorage(key);
+      await deleteImageFromStorage(fotoUrl);
 
-
-      const nuevasFotos = formData.fotos.filter((foto) => foto !== fotoUrl);
+      const nuevasFotos = formData.fotos.filter(foto => foto !== fotoUrl);
       setFormData({ ...formData, fotos: nuevasFotos });
-
-      const prendaRef = doc(db, "disponible", id);
-      await updateDoc(prendaRef, { fotos: nuevasFotos });
-
+      await updateDoc(doc(db, "disponible", id), { fotos: nuevasFotos });
       alert("✅ Imagen eliminada con éxito");
-
     } catch (error) {
-      console.error("Error al eliminar imagen individual:", error);
+      console.error("Error al eliminar imagen:", error);
       alert("❌ Error al eliminar la imagen: " + error.message);
     } finally {
       setLoading(false);
@@ -368,7 +308,6 @@ function DetallePrenda() {
       await updateDoc(prendaRef, { fotos: nuevasFotos });
 
       alert(`✅ ${uploadedUrls.length} imágenes añadidas con éxito`);
-
     } catch (error) {
       alert("❌ Error al subir imágenes: " + error.message);
       console.error(error);
@@ -388,45 +327,6 @@ function DetallePrenda() {
 
   const categoriaOptions = categorias.map((cat) => ({ value: cat, label: cat }));
   const tallaOptions = tallas.map((talla) => ({ value: talla, label: talla }));
-
-  // 🔥 BOTÓN DE PRUEBA TEMPORAL - BORRA ESTO DESPUÉS
-  async function testDeleteDebug() {
-    try {
-      const fotos = formData.fotos || [];
-      if (!fotos.length) { alert("No hay fotos"); return; }
-      const url = fotos[0]; // probamos con la primera
-      alert("URL a probar: " + url);
-
-      // helper para extraer key: (usa el mismo getR2KeyFromUrl)
-      function getR2KeyFromUrl(u) {
-        try { const x = new URL(u); return x.pathname.startsWith("/") ? x.pathname.slice(1) : x.pathname; }
-        catch (e) { return u.split("/").pop(); }
-      }
-      const key = getR2KeyFromUrl(url);
-      alert("Key calculada (frontend): " + key);
-
-      // Llamada DEBUG: añadimos key también en query para saltar problemas de body en DELETE
-      const debugUrl = `${BACKEND_URL}/api/deleteImage?debug=1&key=${encodeURIComponent(key)}`;
-
-      alert("Enviando DELETE a: " + debugUrl);
-
-      const response = await fetch(debugUrl, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Debug": "1"
-        },
-        body: JSON.stringify({ key }) // lo mandamos igual (por si el server lo lee)
-      });
-
-      alert("Request enviada. Status: " + response.status);
-      const text = await response.text();
-      alert("Respuesta recibida: " + text);
-    } catch (err) {
-      alert("Error en testDeleteDebug: " + err.message);
-    }
-  }
-
 
   return (
     <div className="bg-pink-100 min-h-screen">
@@ -488,27 +388,7 @@ function DetallePrenda() {
         </div>
       ) : null}
 
-
-
       <main className="pb-20 flex flex-center justify-center">
-        {/* 🔥 BOTÓN DE PRUEBA TEMPORAL - BORRA ESTO DESPUÉS */}
-        <button
-          type="button"
-          onClick={testDeleteDebug}
-          className="mt-4 py-2 px-4 bg-yellow-500 text-white rounded-md"
-        >
-          🧪 Probar eliminar de R2
-        </button>
-
-
-
-
-
-
-
-
-
-
         <form onSubmit={handleSubmit} className="lg:border-2 lg:shadow-xl px-5 lg:py-2 pb-20 mt-2 rounded-lg border-pink-200 max-w-lg w-full">
           <div className="flex flex-col justify-center my-3">
             <input
@@ -616,16 +496,13 @@ function DetallePrenda() {
             >
               {loading ? "Actualizando..." : "Actualizar Prenda"}
             </button>
-            <button onClick={() => manejarClickVender(id)} className="mt-2 py-2 px-4 bg-pink-700 text-white rounded-md cursor-pointer hover:bg-pink-200"
-              type="button">
+            <button onClick={() => manejarClickVender(id)} className="mt-2 py-2 px-4 bg-pink-700 text-white rounded-md cursor-pointer hover:bg-pink-200" type="button">
               Vender
             </button>
-            <button className="mt-2 py-2 px-4 bg-red-600 text-white rounded-md cursor-pointer hover:bg-pink-200"
-              type="button" onClick={handleDelete}>
+            <button className="mt-2 py-2 px-4 bg-red-600 text-white rounded-md cursor-pointer hover:bg-pink-200" type="button" onClick={handleDelete}>
               Eliminar prenda
             </button>
-            <button className="mt-2 py-2 px-4 bg-green-600 text-white rounded-md cursor-pointer hover:bg-pink-200"
-              type="button" onClick={() => enviarWhatsapp(id)}>
+            <button className="mt-2 py-2 px-4 bg-green-600 text-white rounded-md cursor-pointer hover:bg-pink-200" type="button" onClick={() => enviarWhatsapp(id)}>
               Compartir
             </button>
           </div>
