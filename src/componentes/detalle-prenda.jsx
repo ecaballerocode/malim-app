@@ -352,12 +352,44 @@ function DetallePrenda() {
  };
 
 
+ // ... (código anterior)
+
+ // Variables de configuración importantes
+ const VERCEL_BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || "https://malim-backend.vercel.app").trim();
+ // ** IMPORTANTE: Define el dominio real de tu SPA para que el backend pueda redirigir
+ const SPA_DOMAIN = 'https://malim-shop.vercel.app'; 
+
  const enviarWhatsapp = (id) => {
-   const message = encodeURIComponent("Conoce nuestras prendas aqui: ");
-   const urlId = encodeURIComponent(`https://malim-shop.vercel.app/DetallePrenda/${id}`); // ← sin espacios
-   const url = `https://wa.me/?text=${message}${urlId}`;
-   window.open(url, "_blank");
- };
+  // 1. Obtener los datos necesarios para las etiquetas OG
+  const name = formData.prenda || "Prenda sin nombre";
+  const description = formData.detalles || "Consulta los detalles de esta prenda.";
+  // Usamos la primera foto como la imagen de vista previa, con un fallback
+  const imageUrl = formData.fotos?.[0] || `${SPA_DOMAIN}/placeholder.jpg`; 
+  
+  // 2. CORRECCIÓN CLAVE 1: Definir la URL canónica (a donde irá el cliente)
+  // Debe ser el dominio de la TIENDA EN LÍNEA (malim-shop.vercel.app)
+  const productUrlSPA = `${SPA_DOMAIN}/DetallePrenda/${id}`;
+
+  // 3. Construir los parámetros de consulta codificados
+  const previewParams = new URLSearchParams();
+  previewParams.append('name', name);
+  previewParams.append('desc', description); 
+  previewParams.append('image', imageUrl);
+  previewParams.append('spa_url', productUrlSPA); // URL canónica para el HTML OG
+
+  // 4. Generar la URL del servicio Vercel (el que genera el HTML OG)
+  // Esta es la URL que el crawler de WhatsApp leerá.
+  const previewUrl = `${VERCEL_BACKEND_URL}/api/product-preview?${previewParams.toString()}`;
+
+  // 5. CORRECCIÓN CLAVE 2: Generar el enlace wa.me sin número
+  // Esto forzará a WhatsApp a preguntar a qué contacto enviar.
+  const preFilledMessage = `¡Hola! ¡Mira esta prenda que tenemos disponible! Puedes ver los detalles aquí: ${previewUrl}`;
+  
+  // Usamos solo wa.me/?text= para que el usuario elija el contacto
+  const url = `https://wa.me/?text=${encodeURIComponent(preFilledMessage)}`;
+  
+  window.open(url, "_blank");
+};
 
 
  const handleFileChange = async (e) => {
