@@ -442,45 +442,106 @@ function DetallePrenda() {
     }
   };
 
-
+  // Necesitarás la función loadImage de tu componente de marca de agua
   // ... (código anterior)
 
   // Variables de configuración importantes
-  const VERCEL_BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "https://malim-backend.vercel.app").trim();
-  const SPA_DOMAIN = 'https://malim-shop.vercel.app';
+  // Estas constantes deben estar definidas en la parte superior de tu componente
+const VERCEL_BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "https://malim-backend.vercel.app").trim();
+const SPA_DOMAIN = 'https://malim-shop.vercel.app';
 
-const enviarWhatsapp = (id) => {
-    // 1. Obtener los datos necesarios para las etiquetas OG
+// -------------------------------------------------------------
+// FUNCIÓN PRINCIPAL: Genera la URL de Preview con etiquetas OG
+// -------------------------------------------------------------
+
+// FUNCIÓN PRINCIPAL: Genera la URL de Preview con etiquetas OG
+const generarPreviewUrl = (id) => {
+    // 1. Obtener los datos (incluyendo tallas)
     const name = formData.prenda || "Prenda sin nombre";
-    const tallas = formData.tallas || "No especificadas"; // <-- Asumiendo que obtienes las tallas de formData
+    const tallasStr = formData.talla.length > 0 ? formData.talla.join(', ') : 'Unitalla o no especificada'; 
     const detallesBase = formData.detalles || "Consulta los detalles de esta prenda.";
-
-    // CONCATENACIÓN CLAVE: Añadir las tallas a la descripción
-    const description = `Tallas disponibles: ${tallas}. ${detallesBase}`; 
+    const allPhotoUrls = formData.fotos || []; // Array de URLs de R2
     
-    // Usamos la primera foto como la imagen de vista previa, con un fallback
-    const imageUrl = formData.fotos?.[0] || `${SPA_DOMAIN}/placeholder.jpg`;
-
-    // 2. Definir la URL canónica
+    // Concatenar las tallas a la descripción
+    const description = `Tallas disponibles: ${tallasStr}. ${detallesBase}`; 
     const productUrlSPA = `${SPA_DOMAIN}/DetallePrenda/${id}`;
 
-    // 3. Construir los parámetros de consulta codificados
+    // --- PASO CLAVE 1: Construir la URL del servicio de Collage ---
+    const collageParams = new URLSearchParams();
+    // Enviamos solo las primeras 3 fotos para el collage
+    allPhotoUrls.slice(0, 3).forEach(url => {
+        // Usamos 'photo' como key para la imagen de la prenda
+        collageParams.append('photo', url); 
+    });
+    
+    // La URL que el crawler usará para obtener la imagen 1200x630
+    // ¡Asegúrate de que este endpoint exista en tu backend!
+    const collageUrl = `${VERCEL_BACKEND_URL}/api/generate-collage?${collageParams.toString()}`;
+    
+    // --- PASO CLAVE 2: Construir la URL de Preview con la URL del Collage ---
+    
     const previewParams = new URLSearchParams();
     previewParams.append('name', name);
-    // Usamos la nueva descripción que incluye las tallas
     previewParams.append('desc', description); 
-    previewParams.append('image', imageUrl);
-    previewParams.append('spa_url', productUrlSPA);
+    previewParams.append('image', collageUrl); // <-- ¡Aquí va el collage horizontal!
+    previewParams.append('spa_url', productUrlSPA); // URL canónica de la tienda
 
-    // 4. Generar la URL del servicio Vercel (el que genera el HTML OG)
-    const previewUrl = `${VERCEL_BACKEND_URL}/api/product-preview?${previewParams.toString()}`;
+    // Generar la URL base del servicio Vercel
+    let previewUrl = `${VERCEL_BACKEND_URL}/api/product-preview?${previewParams.toString()}`;
+    
+    // PASO CLAVE 3: Añadir la propia URL del backend (self_url)
+    previewParams.append('self_url', previewUrl); 
 
-    // 5. Generar el enlace wa.me
-    const preFilledMessage = `¡Hola hermosa!. Nos llegó este ${name} y cuando lo vi pensé en ti porque creo que te va a encantar. Puedes ver los detalles aquí: ${previewUrl}`;
+    // Re-generar la URL final con el self_url
+    const finalPreviewUrl = `${VERCEL_BACKEND_URL}/api/product-preview?${previewParams.toString()}`;
+    
+    return finalPreviewUrl;
+};
+
+// ... Las funciones enviarWhatsapp y compartirEnFacebook se mantienen igual, usando generarPreviewUrl(id)
+
+// -------------------------------------------------------------
+// FUNCIÓN ESPECÍFICA para WhatsApp (reutiliza la lógica de arriba)
+// -------------------------------------------------------------
+const enviarWhatsapp = (id) => {
+    const previewUrl = generarPreviewUrl(id);
+    
+    // El mensaje predefinido con la URL de preview (para asegurar el scraping de OG)
+    const preFilledMessage = `¡Hola! ¡Mira esta prenda que tenemos disponible! Puedes ver los detalles aquí: ${previewUrl}`;
+
+    // Usamos wa.me/?text= para que el usuario elija el contacto
     const url = `https://wa.me/?text=${encodeURIComponent(preFilledMessage)}`;
 
     window.open(url, "_blank");
 };
+
+// -------------------------------------------------------------
+// FUNCIÓN ESPECÍFICA para Facebook (reutiliza la lógica de arriba)
+// -------------------------------------------------------------
+const compartirEnFacebook = (id) => {
+    // 1. Generar la URL de Preview
+    const previewUrl = generarPreviewUrl(id);
+    
+    // 2. Obtener la descripción para prellenar el texto (quote)
+    const descriptionText = formData.descripcion.trim() || 
+                            `¡Mira esta increíble prenda: ${formData.prenda || 'Artículo'}!`;
+
+    // 3. Parámetros para el Diálogo de Compartir de Facebook
+    const fbShareParams = new URLSearchParams();
+    fbShareParams.append('u', previewUrl); // La URL que Facebook leerá para OG
+    
+    // ⭐ CAMBIO CLAVE: Usar 'quote' para prellenar la descripción
+    fbShareParams.append('quote', descriptionText); 
+    
+    const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?${fbShareParams.toString()}`;
+
+    // Abrir en una ventana pequeña
+    window.open(fbShareUrl, "_blank", "width=600,height=400");
+};
+
+// Asegúrate de que tu componente JSX/React incluya la data de la prenda.
+// Por ejemplo, si tienes el ID de la prenda en una variable llamada 'prendaId':
+// const prendaId = '...';
 
 
   const handleFileChange = async (e) => {
@@ -753,7 +814,9 @@ const enviarWhatsapp = (id) => {
           >
             Generar Descripción
           </button>
-
+          <button className="mt-2 py-2 px-4 bg-blue-600 text-white rounded-md cursor-pointer hover:bg-blue-200 w-1/2" type="button" onClick={() => compartirEnFacebook(id)}>
+              Compartir en Facebook
+            </button>
 
 
           <div className="flex flex-col justify-around mt-4">
@@ -771,7 +834,7 @@ const enviarWhatsapp = (id) => {
               Eliminar prenda
             </button>
             <button className="mt-2 py-2 px-4 bg-green-600 text-white rounded-md cursor-pointer hover:bg-pink-200" type="button" onClick={() => enviarWhatsapp(id)}>
-              Compartir
+              Enviar por whatsapp
             </button>
           </div>
         </form>
