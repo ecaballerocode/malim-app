@@ -357,10 +357,10 @@ function DetallePrenda() {
   };
 
   // 🚀 FUNCIÓN PARA GENERAR DESCRIPCIÓN CON IA
-const handleGenerarDescripcion = async () => {
+  const handleGenerarDescripcion = async () => {
     if (!OPENROUTER_KEY) {
-        alert("Error: La clave de OpenRouter no está configurada en las variables de entorno.");
-        return;
+      alert("Error: La clave de OpenRouter no está configurada en las variables de entorno.");
+      return;
     }
 
     setLoading(true);
@@ -371,7 +371,7 @@ const handleGenerarDescripcion = async () => {
     const precio = formData.precio || 'precio no especificado';
     const tallas = formData.talla.length > 0 ? formData.talla.join(', ') : 'Unitalla o no especificado';
     // Nota: Asumo que 'tonos' no existe. Usamos 'detalles' si es necesario.
-    
+
     // 2. Construir el prompt para Qwen
     const prompt = `
         **ROL:** Eres un Copywriter experto en moda femenina con un tono amigable, confiable y cercano.
@@ -397,92 +397,90 @@ const handleGenerarDescripcion = async () => {
     `;
 
     try {
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${OPENROUTER_KEY}`,
-                "HTTP-Referer": SPA_DOMAIN_FOR_REFERER,
-                "X-Title": "Malim E-Commerce Admin",
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                "model": "qwen/qwen3-235b-a22b:free",
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                "temperature": 0.8, // Para un resultado más creativo
-                "max_tokens": 500 // Suficiente para un post de Facebook
-            })
-        });
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENROUTER_KEY}`,
+          "HTTP-Referer": SPA_DOMAIN_FOR_REFERER,
+          "X-Title": "Malim E-Commerce Admin",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          "model": "qwen/qwen3-235b-a22b:free",
+          "messages": [
+            {
+              "role": "user",
+              "content": prompt
+            }
+          ],
+          "temperature": 0.8, // Para un resultado más creativo
+          "max_tokens": 500 // Suficiente para un post de Facebook
+        })
+      });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`Error ${response.status}: ${errorData.error.message || response.statusText}`);
-        }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Error ${response.status}: ${errorData.error.message || response.statusText}`);
+      }
 
-        const data = await response.json();
-        const descripcionGenerada = data.choices[0]?.message?.content?.trim() || "No se pudo generar la descripción.";
+      const data = await response.json();
+      const descripcionGenerada = data.choices[0]?.message?.content?.trim() || "No se pudo generar la descripción.";
 
-        // Actualizar el estado con la descripción generada
-        setFormData(prevData => ({
-            ...prevData,
-            descripcion: descripcionGenerada,
-        }));
+      // Actualizar el estado con la descripción generada
+      setFormData(prevData => ({
+        ...prevData,
+        descripcion: descripcionGenerada,
+      }));
 
-        alert("✅ Descripción generada con éxito.");
+      alert("✅ Descripción generada con éxito.");
 
     } catch (error) {
-        console.error("Error al generar la descripción:", error);
-        alert(`❌ Error al generar la descripción: ${error.message}`);
+      console.error("Error al generar la descripción:", error);
+      alert(`❌ Error al generar la descripción: ${error.message}`);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
+  };
 
 
   // ... (código anterior)
 
   // Variables de configuración importantes
-  // Variables de configuración importantes
   const VERCEL_BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "https://malim-backend.vercel.app").trim();
-  // ** IMPORTANTE: Define el dominio real de tu SPA para que el backend pueda redirigir
-  // ** IMPORTANTE: Define el dominio real de tu SPA para que el backend pueda redirigir
   const SPA_DOMAIN = 'https://malim-shop.vercel.app';
 
-  const enviarWhatsapp = (id) => {
+const enviarWhatsapp = (id) => {
     // 1. Obtener los datos necesarios para las etiquetas OG
     const name = formData.prenda || "Prenda sin nombre";
-    const description = formData.detalles || "Consulta los detalles de esta prenda.";
+    const tallas = formData.tallas || "No especificadas"; // <-- Asumiendo que obtienes las tallas de formData
+    const detallesBase = formData.detalles || "Consulta los detalles de esta prenda.";
+
+    // CONCATENACIÓN CLAVE: Añadir las tallas a la descripción
+    const description = `Tallas disponibles: ${tallas}. ${detallesBase}`; 
+    
     // Usamos la primera foto como la imagen de vista previa, con un fallback
     const imageUrl = formData.fotos?.[0] || `${SPA_DOMAIN}/placeholder.jpg`;
 
-    // 2. CORRECCIÓN CLAVE 1: Definir la URL canónica (a donde irá el cliente)
-    // Debe ser el dominio de la TIENDA EN LÍNEA (malim-shop.vercel.app)
+    // 2. Definir la URL canónica
     const productUrlSPA = `${SPA_DOMAIN}/DetallePrenda/${id}`;
 
     // 3. Construir los parámetros de consulta codificados
     const previewParams = new URLSearchParams();
     previewParams.append('name', name);
-    previewParams.append('desc', description);
+    // Usamos la nueva descripción que incluye las tallas
+    previewParams.append('desc', description); 
     previewParams.append('image', imageUrl);
-    previewParams.append('spa_url', productUrlSPA); // URL canónica para el HTML OG
+    previewParams.append('spa_url', productUrlSPA);
 
     // 4. Generar la URL del servicio Vercel (el que genera el HTML OG)
-    // Esta es la URL que el crawler de WhatsApp leerá.
     const previewUrl = `${VERCEL_BACKEND_URL}/api/product-preview?${previewParams.toString()}`;
 
-    // 5. CORRECCIÓN CLAVE 2: Generar el enlace wa.me sin número
-    // Esto forzará a WhatsApp a preguntar a qué contacto enviar.
-    const preFilledMessage = `¡Hola! ¡Mira esta prenda que tenemos disponible! Puedes ver los detalles aquí: ${previewUrl}`;
-
-    // Usamos solo wa.me/?text= para que el usuario elija el contacto
+    // 5. Generar el enlace wa.me
+    const preFilledMessage = `¡Hola hermosa!. Nos llegó este ${name} y cuando lo vi pensé en ti porque creo que te va a encantar. Puedes ver los detalles aquí: ${previewUrl}`;
     const url = `https://wa.me/?text=${encodeURIComponent(preFilledMessage)}`;
 
     window.open(url, "_blank");
-  };
+};
 
 
   const handleFileChange = async (e) => {
@@ -733,29 +731,29 @@ const handleGenerarDescripcion = async () => {
             ></textarea>
           </div>
 
-      
 
-         {/* 🚀 INICIO: NUEVO CAMPO Y BOTÓN DE GENERACIÓN */}
-         <div className="flex flex-col pt-2">
-           <label className="px-2 text-pink-800 font-bold">Descripción:</label>
-           <textarea
-             name="descripcion" // Usaremos 'descripcion' para este campo
-             placeholder="Generar o escribir una descripción larga aquí..."
-             value={formData.descripcion}
-             onChange={handleChange}
-             rows="4"
-             className="px-2 py-1 rounded-md shadow-sm resize-none"
-           ></textarea>
-         </div>
-         <button
-           type="button"
-           onClick={handleGenerarDescripcion}
-           className="mt-2 py-2 px-4 bg-purple-600 text-white rounded-md cursor-pointer hover:bg-purple-700 w-1/2"
-           disabled={loading}
-         >
-           Generar Descripción
-         </button>
-       
+
+          {/* 🚀 INICIO: NUEVO CAMPO Y BOTÓN DE GENERACIÓN */}
+          <div className="flex flex-col pt-2">
+            <label className="px-2 text-pink-800 font-bold">Descripción:</label>
+            <textarea
+              name="descripcion" // Usaremos 'descripcion' para este campo
+              placeholder="Generar o escribir una descripción larga aquí..."
+              value={formData.descripcion}
+              onChange={handleChange}
+              rows="4"
+              className="px-2 py-1 rounded-md shadow-sm resize-none"
+            ></textarea>
+          </div>
+          <button
+            type="button"
+            onClick={handleGenerarDescripcion}
+            className="mt-2 py-2 px-4 bg-purple-600 text-white rounded-md cursor-pointer hover:bg-purple-700 w-1/2"
+            disabled={loading}
+          >
+            Generar Descripción
+          </button>
+
 
 
           <div className="flex flex-col justify-around mt-4">
