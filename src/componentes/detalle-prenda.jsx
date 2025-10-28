@@ -41,8 +41,8 @@ function DetallePrenda() {
 
   const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "https://malim-backend.vercel.app").trim();
   const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_KEY;
-  const SPA_DOMAIN_FOR_REFERER = import.meta.env.VITE_SPA_DOMAIN || 'https://malim-shop.vercel.app'; // Usamos el mismo fallback que abajo si no está
-
+  const SPA_DOMAIN = import.meta.env.VITE_SPA_DOMAIN || 'https://malim-shop.vercel.app'; 
+  const VERCEL_BACKEND_URL = BACKEND_URL; // Usamos BACKEND_URL para el backend
 
 
   const manejadorMenu = () => {
@@ -370,26 +370,27 @@ function DetallePrenda() {
     const detallesPrenda = formData.detalles || 'sin detalles adicionales';
     const precio = formData.precio || 'precio no especificado';
     const tallas = formData.talla.length > 0 ? formData.talla.join(', ') : 'Unitalla o no especificado';
-    // Nota: Asumo que 'tonos' no existe. Usamos 'detalles' si es necesario.
+    const SPA_DOMAIN_FOR_REFERER = import.meta.env.VITE_SPA_DOMAIN || 'https://malim-shop.vercel.app';
 
     // 2. Construir el prompt para Qwen
     const prompt = `
         **ROL:** Eres un Copywriter experto en moda femenina con un tono amigable, confiable y cercano.
         
-        **TAREA:** Genera una descripción atractiva y muy persuasiva para un post de Facebook sobre la prenda a continuación.
+        **TAREA:** Genera una descripción atractiva y muy persuasiva para un post de Facebook sobre la prenda a continuación:
 
-        **AUDIENCIA:** Mujeres de 25 a 55 años.
-
-        **RESTRICCIONES:**
-        1. **Longitud:** La descripción completa debe ser de **4 a 6 líneas/párrafos muy cortos máximo**. Sé muy conciso.
-        2. **Contenido:** Debes resaltar la **comodidad, versatilidad** (ej. "ideal para el trabajo y un café con amigas"), **estilo, calidad y accesibilidad** de la prenda.
-        3. **Formato:** Utiliza emojis y un lenguaje cálido. **NO uses negritas ni viñetas.**
 
         **DATOS DE LA PRENDA:**
         - Nombre: ${nombrePrenda}
         - Detalles Adicionales: ${detallesPrenda}
         - Tallas Disponibles: ${tallas}
         - PRECIO A MENCIONAR: $${precio} pesos.
+
+        **AUDIENCIA:** Mujeres de 25 a 55 años.
+
+        **RESTRICCIONES:**
+        1. **Longitud:** La descripción completa debe ser de 4 a 6 líneas/párrafos muy cortos máximo. Sé muy conciso.
+        2. **Contenido:** Debes resaltar la **comodidad, versatilidad** (ej. "ideal para el trabajo y un café con amigas"), **estilo, calidad y accesibilidad** de la prenda.
+        3. **Formato:** Utiliza emojis y un lenguaje cálido. **NO uses negritas ni viñetas.**
 
         **CIERRE OBLIGATORIO (Call to Action):**
         Incluye esta frase exacta al final del post, después del cuerpo del texto:
@@ -442,55 +443,56 @@ function DetallePrenda() {
     }
   };
 
-  // Necesitarás la función loadImage de tu componente de marca de agua
-  // ... (código anterior)
-
-  // Variables de configuración importantes
-  // Estas constantes deben estar definidas en la parte superior de tu componente
-const VERCEL_BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "https://malim-backend.vercel.app").trim();
-const SPA_DOMAIN = 'https://malim-shop.vercel.app';
-
 // -------------------------------------------------------------
 // FUNCIÓN PRINCIPAL: Genera la URL de Preview con etiquetas OG
 // -------------------------------------------------------------
 
-// FUNCIÓN PRINCIPAL: Genera la URL de Preview con etiquetas OG
-const generarPreviewUrl = (id) => {
-    // 1. Obtener los datos (incluyendo tallas)
+/**
+ * Genera la URL para el servicio de previsualización (product-preview).
+ * @param {string} id - El ID de la prenda.
+ * @param {boolean} useCollage - Si es true, usa el endpoint de collage. Si es false, usa la primera imagen directa.
+ * @returns {string} La URL final del servicio de previsualización.
+ */
+const generarPreviewUrl = (id, useCollage = true) => {
     const name = formData.prenda || "Prenda sin nombre";
     const tallasStr = formData.talla.length > 0 ? formData.talla.join(', ') : 'Unitalla o no especificada'; 
     const detallesBase = formData.detalles || "Consulta los detalles de esta prenda.";
-    const allPhotoUrls = formData.fotos || []; // Array de URLs de R2
-    
-    // Concatenar las tallas a la descripción
+    const allPhotoUrls = formData.fotos || []; 
+    const FALLBACK_IMAGE_URL = `${SPA_DOMAIN}/placeholder.jpg`; // Asegúrate de tener una imagen de fallback
+
     const description = `Tallas disponibles: ${tallasStr}. ${detallesBase}`; 
     const productUrlSPA = `${SPA_DOMAIN}/DetallePrenda/${id}`;
 
-    // --- PASO CLAVE 1: Construir la URL del servicio de Collage ---
-    const collageParams = new URLSearchParams();
-    // Enviamos solo las primeras 3 fotos para el collage
-    allPhotoUrls.slice(0, 3).forEach(url => {
-        // Usamos 'photo' como key para la imagen de la prenda
-        collageParams.append('photo', url); 
-    });
-    
-    // La URL que el crawler usará para obtener la imagen 1200x630
-    // ¡Asegúrate de que este endpoint exista en tu backend!
-    const collageUrl = `${VERCEL_BACKEND_URL}/api/generate-collage?${collageParams.toString()}`;
-    
-    // --- PASO CLAVE 2: Construir la URL de Preview con la URL del Collage ---
+    let imageUrl;
+
+    if (useCollage && allPhotoUrls.length > 1) {
+        // Opción 1: Collage para Facebook (o si se fuerza)
+        const collageParams = new URLSearchParams();
+        allPhotoUrls.slice(0, 3).forEach(url => {
+            collageParams.append('photo', url); 
+        });
+        imageUrl = `${VERCEL_BACKEND_URL}/api/generate-collage?${collageParams.toString()}`;
+    } else if (allPhotoUrls.length > 0) {
+        // Opción 2: Primera Imagen Directa (Recomendado para WhatsApp)
+        imageUrl = allPhotoUrls[0];
+    } else {
+        // Opción 3: Fallback
+        imageUrl = FALLBACK_IMAGE_URL;
+    }
+
+    // --- Paso 2: Construir la URL de Preview con la imagen seleccionada ---
     
     const previewParams = new URLSearchParams();
     previewParams.append('name', name);
     previewParams.append('desc', description); 
-    previewParams.append('image', collageUrl); // <-- ¡Aquí va el collage horizontal!
+    previewParams.append('image', imageUrl); // <-- URL de la imagen (rápida o collage)
     previewParams.append('spa_url', productUrlSPA); // URL canónica de la tienda
 
-    // Generar la URL base del servicio Vercel
-    let previewUrl = `${VERCEL_BACKEND_URL}/api/product-preview?${previewParams.toString()}`;
+    // Generar la URL base
+    let previewUrlBase = `${VERCEL_BACKEND_URL}/api/product-preview?${previewParams.toString()}`;
     
-    // PASO CLAVE 3: Añadir la propia URL del backend (self_url)
-    previewParams.append('self_url', previewUrl); 
+    // Paso 3: Añadir la propia URL del backend (self_url)
+    previewParams.set('self_url', previewUrlBase); 
 
     // Re-generar la URL final con el self_url
     const finalPreviewUrl = `${VERCEL_BACKEND_URL}/api/product-preview?${previewParams.toString()}`;
@@ -498,15 +500,14 @@ const generarPreviewUrl = (id) => {
     return finalPreviewUrl;
 };
 
-// ... Las funciones enviarWhatsapp y compartirEnFacebook se mantienen igual, usando generarPreviewUrl(id)
-
 // -------------------------------------------------------------
-// FUNCIÓN ESPECÍFICA para WhatsApp (reutiliza la lógica de arriba)
+// FUNCIÓN ESPECÍFICA para WhatsApp (USA IMAGEN DIRECTA)
 // -------------------------------------------------------------
 const enviarWhatsapp = (id) => {
-    const previewUrl = generarPreviewUrl(id);
+    // 🚩 CLAVE: Pasamos 'false' para forzar el uso de la primera imagen directa
+    const previewUrl = generarPreviewUrl(id, false); 
     
-    // El mensaje predefinido con la URL de preview (para asegurar el scraping de OG)
+    // El mensaje predefinido con la URL de preview
     const preFilledMessage = `¡Hola! ¡Mira esta prenda que tenemos disponible! Puedes ver los detalles aquí: ${previewUrl}`;
 
     // Usamos wa.me/?text= para que el usuario elija el contacto
@@ -516,11 +517,11 @@ const enviarWhatsapp = (id) => {
 };
 
 // -------------------------------------------------------------
-// FUNCIÓN ESPECÍFICA para Facebook (reutiliza la lógica de arriba)
+// FUNCIÓN ESPECÍFICA para Facebook (USA COLLAGE)
 // -------------------------------------------------------------
 const compartirEnFacebook = (id) => {
-    // 1. Generar la URL de Preview
-    const previewUrl = generarPreviewUrl(id);
+    // 🚩 CLAVE: Mantenemos el valor por defecto 'true' para usar el collage
+    const previewUrl = generarPreviewUrl(id, true); 
     
     // 2. Obtener la descripción para prellenar el texto (quote)
     const descriptionText = formData.descripcion.trim() || 
@@ -538,10 +539,6 @@ const compartirEnFacebook = (id) => {
     // Abrir en una ventana pequeña
     window.open(fbShareUrl, "_blank", "width=600,height=400");
 };
-
-// Asegúrate de que tu componente JSX/React incluya la data de la prenda.
-// Por ejemplo, si tienes el ID de la prenda en una variable llamada 'prendaId':
-// const prendaId = '...';
 
 
   const handleFileChange = async (e) => {
@@ -848,4 +845,3 @@ const compartirEnFacebook = (id) => {
 
 
 export default DetallePrenda;
-
