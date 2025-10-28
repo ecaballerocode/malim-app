@@ -460,40 +460,51 @@ const generarPreviewUrlFinal = (id, useCollage = false, previewEndpoint = 'whats
     // 1. Datos para la preview
     const name = formData.prenda || "Prenda sin nombre";
     const tallasStr = formData.talla.length > 0 ? formData.talla.join(', ') : 'Unitalla o no especificada'; 
-    const description = `Tallas: ${tallasStr}. ${formData.detalles || "Consulta los detalles."}`; 
     const allPhotoUrls = formData.fotos || []; 
     const FALLBACK_IMAGE_URL = `${SPA_DOMAIN}/placeholder.jpg`;
 
     // 2. URL canónica
     const productUrlSPA = `${SPA_DOMAIN}/DetallePrenda/${id}`;
+    
+    // 3. ✅ CLAVE: LÓGICA DE DESCRIPCIÓN DINÁMICA
+    let finalDescription;
+    let descriptionForQuote; // La descripción para la etiqueta OG (la que aparece en la preview)
 
+    if (previewEndpoint === 'facebook') {
+        // Para Facebook: Usamos el texto de la IA ('descripcion') en la etiqueta OG description.
+        descriptionForQuote = `Tallas: ${tallasStr}. ${formData.detalles || "Consulta los detalles."}`;
+        // Y el mismo texto se usa para el 'quote' de la publicación (ver más abajo)
+    } else { // whatsapp
+        // Para WhatsApp: Usamos las tallas + detalles en la etiqueta OG description.
+        descriptionForQuote = `Tallas: ${tallasStr}. ${formData.detalles || "Consulta los detalles."}`;
+    }
+    
+    // 4. Lógica de Imagen (se mantiene igual)
     let imageUrl;
-
     if (useCollage && allPhotoUrls.length >= 3) {
-        // Opción Collage (Para Facebook)
         const collageParams = new URLSearchParams();
         allPhotoUrls.slice(0, 3).forEach(url => {
             collageParams.append('photo', encodeURIComponent(url)); 
         });
         imageUrl = `${VERCEL_BACKEND_URL}/api/generate-collage?${collageParams.toString()}`;
     } else if (allPhotoUrls.length > 0) {
-        // Opción Imagen Directa (Para WhatsApp y Fallback)
         imageUrl = allPhotoUrls[0];
     } else {
         imageUrl = FALLBACK_IMAGE_URL;
     }
 
-    // 3. Construir los parámetros de consulta base
+    // 5. Construir los parámetros de consulta base
     const previewParams = new URLSearchParams();
     previewParams.append('name', name);
-    previewParams.append('desc', formData.descripcion.trim() || description); 
+    // Usamos la descripción determinada por la lógica anterior
+    previewParams.append('desc', descriptionForQuote); 
     previewParams.append('image', imageUrl); 
     previewParams.append('spa_url', productUrlSPA);
 
-    // 4. Generar la URL base del endpoint
+    // 6. Generar la URL base del endpoint
     let finalPreviewUrl = `${VERCEL_BACKEND_URL}/api/${previewEndpoint}-preview?${previewParams.toString()}`;
     
-    // ✅ CLAVE: Si es para Facebook, añadimos self_url y regeneramos la URL.
+    // 7. Si es para Facebook, añadimos self_url y regeneramos la URL.
     if (previewEndpoint === 'facebook') {
         previewParams.append('self_url', finalPreviewUrl);
         // Regeneramos la URL final con el self_url
@@ -507,10 +518,16 @@ const generarPreviewUrlFinal = (id, useCollage = false, previewEndpoint = 'whats
 // FUNCIÓN ESPECÍFICA para WhatsApp (IMAGEN DIRECTA, ENDPOINT WA)
 // -------------------------------------------------------------
 const enviarWhatsapp = (id) => {
-    // Usa imagen simple y el endpoint whatsapp-preview
-    const previewUrl = generarPreviewUrlFinal(id, false, 'whatsapp'); 
+    // Generamos la URL del backend (la que genera la preview)
+    const previewUrlBackend = generarPreviewUrlFinal(id, false, 'whatsapp'); 
     
-    const preFilledMessage = `¡Hola! ¡Mira esta prenda que tenemos disponible! Puedes ver los detalles aquí: ${previewUrl}`;
+    // Creamos el mensaje usando la URL del backend, pero con texto claro para el usuario.
+    const preFilledMessage = 
+        `¡Hola hermosa! Nos llegó este ${formData.prenda} y creo que te va a encantar. 
+        
+Haz clic aquí para ver los detalles: ${previewUrlBackend}`;
+    
+    // WhatsApp mostrará el texto "Haz clic aquí..." y luego la preview.
     const url = `https://wa.me/?text=${encodeURIComponent(preFilledMessage)}`;
 
     window.open(url, "_blank");
@@ -520,17 +537,25 @@ const enviarWhatsapp = (id) => {
 // FUNCIÓN ESPECÍFICA para Facebook (COLLAGE, ENDPOINT FB)
 // -------------------------------------------------------------
 const compartirEnFacebook = (id) => {
-    // Usa collage y el endpoint facebook-preview (que añade el self_url)
+    // 1. Genera la URL de preview que Facebook rastreará
     const previewUrl = generarPreviewUrlFinal(id, true, 'facebook'); 
     
-    const descriptionText = formData.descripcion.trim() || 
-                            `¡Mira esta increíble prenda: ${formData.prenda || 'Artículo'}!`;
+    // 2. Obtener el texto del textarea. 
+    // Usamos el texto largo de la IA, si no, un fallback simple.
+    // ⚠️ Importante: Reemplazar saltos de línea por espacios si formData.descripcion permite multilínea.
+    const rawDescriptionText = formData.descripcion.trim() || 
+                               `¡Mira esta increíble prenda: ${formData.prenda || 'Artículo'}!`;
+    
+    // 3. Crear la URL base del diálogo de compartir (usando el parámetro 'u' para la preview)
+    const baseUrl = 'https://www.facebook.com/sharer/sharer.php';
 
+    // 4. Parámetros principales (solo la URL de preview)
     const fbShareParams = new URLSearchParams();
     fbShareParams.append('u', previewUrl); 
-    fbShareParams.append('quote', descriptionText); 
-    
-    const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?${fbShareParams.toString()}`;
+
+    // 5. Construir la URL final CON el parámetro 'quote' para el texto de la publicación
+    // Usamos encodeURIComponent para asegurar que el texto llegue al textarea de Facebook.
+    const fbShareUrl = `${baseUrl}?${fbShareParams.toString()}&quote=${encodeURIComponent(rawDescriptionText)}`;
 
     window.open(fbShareUrl, "_blank", "width=600,height=400");
 };
@@ -801,7 +826,7 @@ const compartirEnFacebook = (id) => {
             <button
               type="button"
               onClick={handleGenerarDescripcion}
-              className="mt-2 py-2 px-4 bg-purple-600 text-white rounded-md cursor-pointer hover:bg-purple-700 w-1/2"
+              className="mt-2 py-2 px-4 bg-purple-500 text-white rounded-md cursor-pointer hover:bg-purple-700 w-1/2"
               disabled={loading}
             >
               Generar Descripción
