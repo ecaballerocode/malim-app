@@ -443,6 +443,8 @@ function DetallePrenda() {
   };
 
 
+// ... (asegúrate de que SPA_DOMAIN y VERCEL_BACKEND_URL estén definidos correctamente)
+
 // -------------------------------------------------------------
 // FUNCIÓN PRINCIPAL: Genera la URL de Preview con etiquetas OG
 // -------------------------------------------------------------
@@ -450,10 +452,11 @@ function DetallePrenda() {
 /**
  * Función auxiliar para generar la URL del servicio de Preview.
  * @param {string} id - El ID de la prenda.
- * @param {boolean} useCollage - Si es true, usa el endpoint de collage. Si es false, usa la primera imagen directa.
- * @returns {string} La URL final del servicio de previsualización que el crawler debe leer.
+ * @param {boolean} useCollage - Si es true, usa el endpoint de collage.
+ * @param {string} previewEndpoint - El nombre del endpoint a usar (whatsapp o facebook).
+ * @returns {string} La URL final del servicio de previsualización.
  */
-const generarPreviewUrlSimple = (id, useCollage = false) => {
+const generarPreviewUrlFinal = (id, useCollage = false, previewEndpoint = 'whatsapp') => {
     // 1. Datos para la preview
     const name = formData.prenda || "Prenda sin nombre";
     const tallasStr = formData.talla.length > 0 ? formData.talla.join(', ') : 'Unitalla o no especificada'; 
@@ -461,7 +464,7 @@ const generarPreviewUrlSimple = (id, useCollage = false) => {
     const allPhotoUrls = formData.fotos || []; 
     const FALLBACK_IMAGE_URL = `${SPA_DOMAIN}/placeholder.jpg`;
 
-    // 2. URL canónica (a donde irá el cliente)
+    // 2. URL canónica
     const productUrlSPA = `${SPA_DOMAIN}/DetallePrenda/${id}`;
 
     let imageUrl;
@@ -469,7 +472,6 @@ const generarPreviewUrlSimple = (id, useCollage = false) => {
     if (useCollage && allPhotoUrls.length >= 3) {
         // Opción Collage (Para Facebook)
         const collageParams = new URLSearchParams();
-        // Usamos encodeURIComponent para las URL de las fotos
         allPhotoUrls.slice(0, 3).forEach(url => {
             collageParams.append('photo', encodeURIComponent(url)); 
         });
@@ -481,56 +483,55 @@ const generarPreviewUrlSimple = (id, useCollage = false) => {
         imageUrl = FALLBACK_IMAGE_URL;
     }
 
-    // 3. Construir los parámetros de consulta finales
+    // 3. Construir los parámetros de consulta base
     const previewParams = new URLSearchParams();
     previewParams.append('name', name);
-    // Usar la descripción larga si está disponible, si no, usar los detalles cortos
     previewParams.append('desc', formData.descripcion.trim() || description); 
-    previewParams.append('image', imageUrl); // La URL del collage o de la foto simple
-    previewParams.append('spa_url', productUrlSPA); // URL canónica para el HTML OG
+    previewParams.append('image', imageUrl); 
+    previewParams.append('spa_url', productUrlSPA);
 
-    // 4. Generar la URL del servicio Vercel (el que genera el HTML OG)
-    // ✅ No incluimos 'self_url' en el Link de WhatsApp/Facebook.
-    const finalPreviewUrl = `${VERCEL_BACKEND_URL}/api/product-preview?${previewParams.toString()}`;
+    // 4. Generar la URL base del endpoint
+    let finalPreviewUrl = `${VERCEL_BACKEND_URL}/api/${previewEndpoint}-preview?${previewParams.toString()}`;
+    
+    // ✅ CLAVE: Si es para Facebook, añadimos self_url y regeneramos la URL.
+    if (previewEndpoint === 'facebook') {
+        previewParams.append('self_url', finalPreviewUrl);
+        // Regeneramos la URL final con el self_url
+        finalPreviewUrl = `${VERCEL_BACKEND_URL}/api/facebook-preview?${previewParams.toString()}`;
+    }
     
     return finalPreviewUrl;
 };
 
 // -------------------------------------------------------------
-// FUNCIÓN ESPECÍFICA para WhatsApp (USA IMAGEN DIRECTA)
+// FUNCIÓN ESPECÍFICA para WhatsApp (IMAGEN DIRECTA, ENDPOINT WA)
 // -------------------------------------------------------------
 const enviarWhatsapp = (id) => {
-    // 🚩 CLAVE: Pasamos 'false' para forzar el uso de la primera imagen directa (simple)
-    const previewUrl = generarPreviewUrlSimple(id, false); 
+    // Usa imagen simple y el endpoint whatsapp-preview
+    const previewUrl = generarPreviewUrlFinal(id, false, 'whatsapp'); 
     
-    // El mensaje predefinido con la URL de preview
     const preFilledMessage = `¡Hola! ¡Mira esta prenda que tenemos disponible! Puedes ver los detalles aquí: ${previewUrl}`;
-
-    // Usamos wa.me/?text= para que el usuario elija el contacto
     const url = `https://wa.me/?text=${encodeURIComponent(preFilledMessage)}`;
 
     window.open(url, "_blank");
 };
 
 // -------------------------------------------------------------
-// FUNCIÓN ESPECÍFICA para Facebook (USA COLLAGE)
+// FUNCIÓN ESPECÍFICA para Facebook (COLLAGE, ENDPOINT FB)
 // -------------------------------------------------------------
 const compartirEnFacebook = (id) => {
-    // 🚩 CLAVE: Pasamos 'true' para intentar usar el collage (si hay fotos suficientes)
-    const previewUrl = generarPreviewUrlSimple(id, true); 
+    // Usa collage y el endpoint facebook-preview (que añade el self_url)
+    const previewUrl = generarPreviewUrlFinal(id, true, 'facebook'); 
     
-    // Obtener la descripción para prellenar el texto (quote)
     const descriptionText = formData.descripcion.trim() || 
                             `¡Mira esta increíble prenda: ${formData.prenda || 'Artículo'}!`;
 
-    // Parámetros para el Diálogo de Compartir de Facebook
     const fbShareParams = new URLSearchParams();
-    fbShareParams.append('u', previewUrl); // La URL que Facebook leerá para OG
+    fbShareParams.append('u', previewUrl); 
     fbShareParams.append('quote', descriptionText); 
     
     const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?${fbShareParams.toString()}`;
 
-    // Abrir en una ventana pequeña
     window.open(fbShareUrl, "_blank", "width=600,height=400");
 };
 
