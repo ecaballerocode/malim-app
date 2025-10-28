@@ -41,8 +41,8 @@ function DetallePrenda() {
 
   const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "https://malim-backend.vercel.app").trim();
   const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_KEY;
-  const SPA_DOMAIN = import.meta.env.VITE_SPA_DOMAIN || 'https://malim-shop.vercel.app'; 
-  const VERCEL_BACKEND_URL = BACKEND_URL; // Usamos BACKEND_URL para el backend
+  const SPA_DOMAIN = import.meta.env.VITE_SPA_DOMAIN || 'https://malim-shop.vercel.app'; // URL de tu SPA (Frontend)
+  const VERCEL_BACKEND_URL = BACKEND_URL; // URL de tu Backend (Vercel)
 
 
   const manejadorMenu = () => {
@@ -358,6 +358,7 @@ function DetallePrenda() {
 
   // 🚀 FUNCIÓN PARA GENERAR DESCRIPCIÓN CON IA
   const handleGenerarDescripcion = async () => {
+    const SPA_DOMAIN_FOR_REFERER = SPA_DOMAIN; // Usamos la constante definida arriba
     if (!OPENROUTER_KEY) {
       alert("Error: La clave de OpenRouter no está configurada en las variables de entorno.");
       return;
@@ -370,27 +371,25 @@ function DetallePrenda() {
     const detallesPrenda = formData.detalles || 'sin detalles adicionales';
     const precio = formData.precio || 'precio no especificado';
     const tallas = formData.talla.length > 0 ? formData.talla.join(', ') : 'Unitalla o no especificado';
-    const SPA_DOMAIN_FOR_REFERER = import.meta.env.VITE_SPA_DOMAIN || 'https://malim-shop.vercel.app';
-
+    
     // 2. Construir el prompt para Qwen
     const prompt = `
         **ROL:** Eres un Copywriter experto en moda femenina con un tono amigable, confiable y cercano.
         
-        **TAREA:** Genera una descripción atractiva y muy persuasiva para un post de Facebook sobre la prenda a continuación:
+        **TAREA:** Genera una descripción atractiva y muy persuasiva para un post de Facebook sobre la prenda a continuación.
 
+        **AUDIENCIA:** Mujeres de 25 a 55 años.
+
+        **RESTRICCIONES:**
+        1. **Longitud:** La descripción completa debe ser de **4 a 6 líneas/párrafos muy cortos máximo**. Sé muy conciso.
+        2. **Contenido:** Debes resaltar la **comodidad, versatilidad** (ej. "ideal para el trabajo y un café con amigas"), **estilo, calidad y accesibilidad** de la prenda.
+        3. **Formato:** Utiliza emojis y un lenguaje cálido. **NO uses negritas ni viñetas.**
 
         **DATOS DE LA PRENDA:**
         - Nombre: ${nombrePrenda}
         - Detalles Adicionales: ${detallesPrenda}
         - Tallas Disponibles: ${tallas}
         - PRECIO A MENCIONAR: $${precio} pesos.
-
-        **AUDIENCIA:** Mujeres de 25 a 55 años.
-
-        **RESTRICCIONES:**
-        1. **Longitud:** La descripción completa debe ser de 4 a 6 líneas/párrafos muy cortos máximo. Sé muy conciso.
-        2. **Contenido:** Debes resaltar la **comodidad, versatilidad** (ej. "ideal para el trabajo y un café con amigas"), **estilo, calidad y accesibilidad** de la prenda.
-        3. **Formato:** Utiliza emojis y un lenguaje cálido. **NO uses negritas ni viñetas.**
 
         **CIERRE OBLIGATORIO (Call to Action):**
         Incluye esta frase exacta al final del post, después del cuerpo del texto:
@@ -443,58 +442,55 @@ function DetallePrenda() {
     }
   };
 
+
 // -------------------------------------------------------------
 // FUNCIÓN PRINCIPAL: Genera la URL de Preview con etiquetas OG
 // -------------------------------------------------------------
 
 /**
- * Genera la URL para el servicio de previsualización (product-preview).
+ * Función auxiliar para generar la URL del servicio de Preview.
  * @param {string} id - El ID de la prenda.
  * @param {boolean} useCollage - Si es true, usa el endpoint de collage. Si es false, usa la primera imagen directa.
- * @returns {string} La URL final del servicio de previsualización.
+ * @returns {string} La URL final del servicio de previsualización que el crawler debe leer.
  */
-const generarPreviewUrl = (id, useCollage = true) => {
+const generarPreviewUrlSimple = (id, useCollage = false) => {
+    // 1. Datos para la preview
     const name = formData.prenda || "Prenda sin nombre";
     const tallasStr = formData.talla.length > 0 ? formData.talla.join(', ') : 'Unitalla o no especificada'; 
-    const detallesBase = formData.detalles || "Consulta los detalles de esta prenda.";
+    const description = `Tallas: ${tallasStr}. ${formData.detalles || "Consulta los detalles."}`; 
     const allPhotoUrls = formData.fotos || []; 
-    const FALLBACK_IMAGE_URL = `${SPA_DOMAIN}/placeholder.jpg`; // Asegúrate de tener una imagen de fallback
+    const FALLBACK_IMAGE_URL = `${SPA_DOMAIN}/placeholder.jpg`;
 
-    const description = `Tallas disponibles: ${tallasStr}. ${detallesBase}`; 
+    // 2. URL canónica (a donde irá el cliente)
     const productUrlSPA = `${SPA_DOMAIN}/DetallePrenda/${id}`;
 
     let imageUrl;
 
-    if (useCollage && allPhotoUrls.length > 1) {
-        // Opción 1: Collage para Facebook (o si se fuerza)
+    if (useCollage && allPhotoUrls.length >= 3) {
+        // Opción Collage (Para Facebook)
         const collageParams = new URLSearchParams();
+        // Usamos encodeURIComponent para las URL de las fotos
         allPhotoUrls.slice(0, 3).forEach(url => {
-            collageParams.append('photo', url); 
+            collageParams.append('photo', encodeURIComponent(url)); 
         });
         imageUrl = `${VERCEL_BACKEND_URL}/api/generate-collage?${collageParams.toString()}`;
     } else if (allPhotoUrls.length > 0) {
-        // Opción 2: Primera Imagen Directa (Recomendado para WhatsApp)
+        // Opción Imagen Directa (Para WhatsApp y Fallback)
         imageUrl = allPhotoUrls[0];
     } else {
-        // Opción 3: Fallback
         imageUrl = FALLBACK_IMAGE_URL;
     }
 
-    // --- Paso 2: Construir la URL de Preview con la imagen seleccionada ---
-    
+    // 3. Construir los parámetros de consulta finales
     const previewParams = new URLSearchParams();
     previewParams.append('name', name);
-    previewParams.append('desc', description); 
-    previewParams.append('image', imageUrl); // <-- URL de la imagen (rápida o collage)
-    previewParams.append('spa_url', productUrlSPA); // URL canónica de la tienda
+    // Usar la descripción larga si está disponible, si no, usar los detalles cortos
+    previewParams.append('desc', formData.descripcion.trim() || description); 
+    previewParams.append('image', imageUrl); // La URL del collage o de la foto simple
+    previewParams.append('spa_url', productUrlSPA); // URL canónica para el HTML OG
 
-    // Generar la URL base
-    let previewUrlBase = `${VERCEL_BACKEND_URL}/api/product-preview?${previewParams.toString()}`;
-    
-    // Paso 3: Añadir la propia URL del backend (self_url)
-    previewParams.set('self_url', previewUrlBase); 
-
-    // Re-generar la URL final con el self_url
+    // 4. Generar la URL del servicio Vercel (el que genera el HTML OG)
+    // ✅ No incluimos 'self_url' en el Link de WhatsApp/Facebook.
     const finalPreviewUrl = `${VERCEL_BACKEND_URL}/api/product-preview?${previewParams.toString()}`;
     
     return finalPreviewUrl;
@@ -504,8 +500,8 @@ const generarPreviewUrl = (id, useCollage = true) => {
 // FUNCIÓN ESPECÍFICA para WhatsApp (USA IMAGEN DIRECTA)
 // -------------------------------------------------------------
 const enviarWhatsapp = (id) => {
-    // 🚩 CLAVE: Pasamos 'false' para forzar el uso de la primera imagen directa
-    const previewUrl = generarPreviewUrl(id, false); 
+    // 🚩 CLAVE: Pasamos 'false' para forzar el uso de la primera imagen directa (simple)
+    const previewUrl = generarPreviewUrlSimple(id, false); 
     
     // El mensaje predefinido con la URL de preview
     const preFilledMessage = `¡Hola! ¡Mira esta prenda que tenemos disponible! Puedes ver los detalles aquí: ${previewUrl}`;
@@ -520,18 +516,16 @@ const enviarWhatsapp = (id) => {
 // FUNCIÓN ESPECÍFICA para Facebook (USA COLLAGE)
 // -------------------------------------------------------------
 const compartirEnFacebook = (id) => {
-    // 🚩 CLAVE: Mantenemos el valor por defecto 'true' para usar el collage
-    const previewUrl = generarPreviewUrl(id, true); 
+    // 🚩 CLAVE: Pasamos 'true' para intentar usar el collage (si hay fotos suficientes)
+    const previewUrl = generarPreviewUrlSimple(id, true); 
     
-    // 2. Obtener la descripción para prellenar el texto (quote)
+    // Obtener la descripción para prellenar el texto (quote)
     const descriptionText = formData.descripcion.trim() || 
                             `¡Mira esta increíble prenda: ${formData.prenda || 'Artículo'}!`;
 
-    // 3. Parámetros para el Diálogo de Compartir de Facebook
+    // Parámetros para el Diálogo de Compartir de Facebook
     const fbShareParams = new URLSearchParams();
     fbShareParams.append('u', previewUrl); // La URL que Facebook leerá para OG
-    
-    // ⭐ CAMBIO CLAVE: Usar 'quote' para prellenar la descripción
     fbShareParams.append('quote', descriptionText); 
     
     const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?${fbShareParams.toString()}`;
@@ -790,12 +784,11 @@ const compartirEnFacebook = (id) => {
           </div>
 
 
-
-          {/* 🚀 INICIO: NUEVO CAMPO Y BOTÓN DE GENERACIÓN */}
+          {/* 🚀 INICIO: CAMPO Y BOTÓN DE GENERACIÓN */}
           <div className="flex flex-col pt-2">
             <label className="px-2 text-pink-800 font-bold">Descripción:</label>
             <textarea
-              name="descripcion" // Usaremos 'descripcion' para este campo
+              name="descripcion"
               placeholder="Generar o escribir una descripción larga aquí..."
               value={formData.descripcion}
               onChange={handleChange}
@@ -803,34 +796,42 @@ const compartirEnFacebook = (id) => {
               className="px-2 py-1 rounded-md shadow-sm resize-none"
             ></textarea>
           </div>
-          <button
-            type="button"
-            onClick={handleGenerarDescripcion}
-            className="mt-2 py-2 px-4 bg-purple-600 text-white rounded-md cursor-pointer hover:bg-purple-700 w-1/2"
-            disabled={loading}
-          >
-            Generar Descripción
-          </button>
-          <button className="mt-2 py-2 px-4 bg-blue-600 text-white rounded-md cursor-pointer hover:bg-blue-200 w-1/2" type="button" onClick={() => compartirEnFacebook(id)}>
+          <div className="flex justify-between gap-2">
+            <button
+              type="button"
+              onClick={handleGenerarDescripcion}
+              className="mt-2 py-2 px-4 bg-purple-600 text-white rounded-md cursor-pointer hover:bg-purple-700 w-1/2"
+              disabled={loading}
+            >
+              Generar Descripción
+            </button>
+            <button 
+              className="mt-2 py-2 px-4 bg-blue-600 text-white rounded-md cursor-pointer hover:bg-blue-700 w-1/2" 
+              type="button" 
+              onClick={() => compartirEnFacebook(id)}>
               Compartir en Facebook
             </button>
+          </div>
 
 
           <div className="flex flex-col justify-around mt-4">
             <button
               type="submit"
-              className="mt-2 py-2 px-4 bg-pink-400 text-white rounded-md cursor-pointer hover:bg-pink-200"
+              className="mt-2 py-2 px-4 bg-pink-400 text-white rounded-md cursor-pointer hover:bg-pink-500"
               disabled={loading}
             >
               {loading ? "Actualizando..." : "Actualizar Prenda"}
             </button>
-            <button onClick={() => manejarClickVender(id)} className="mt-2 py-2 px-4 bg-pink-700 text-white rounded-md cursor-pointer hover:bg-pink-200" type="button">
+            <button onClick={() => manejarClickVender(id)} className="mt-2 py-2 px-4 bg-pink-700 text-white rounded-md cursor-pointer hover:bg-pink-800" type="button">
               Vender
             </button>
-            <button className="mt-2 py-2 px-4 bg-red-600 text-white rounded-md cursor-pointer hover:bg-pink-200" type="button" onClick={handleDelete}>
+            <button className="mt-2 py-2 px-4 bg-red-600 text-white rounded-md cursor-pointer hover:bg-red-700" type="button" onClick={handleDelete}>
               Eliminar prenda
             </button>
-            <button className="mt-2 py-2 px-4 bg-green-600 text-white rounded-md cursor-pointer hover:bg-pink-200" type="button" onClick={() => enviarWhatsapp(id)}>
+            <button 
+              className="mt-2 py-2 px-4 bg-green-600 text-white rounded-md cursor-pointer hover:bg-green-700" 
+              type="button" 
+              onClick={() => enviarWhatsapp(id)}>
               Enviar por whatsapp
             </button>
           </div>
