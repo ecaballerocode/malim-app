@@ -406,7 +406,7 @@ function DetallePrenda() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          "model": "qwen/qwen3-235b-a22b:free",
+          "model": "openai/gpt-4o-mini",
           "messages": [
             {
               "role": "user",
