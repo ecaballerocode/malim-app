@@ -368,8 +368,10 @@ function DetallePrenda() {
 
     // 1. Preparar la información de la prenda
     const nombrePrenda = formData.prenda || 'una hermosa prenda';
+    const categoria = formData.categoria || "Sin categoria";
     const detallesPrenda = formData.detalles || 'sin detalles adicionales';
     const precio = formData.precio || 'precio no especificado';
+    const oferta = formData.oferta || "no hay oferta";
     const tallas = formData.talla.length > 0 ? formData.talla.join(', ') : 'Unitalla o no especificado';
     
     // 2. Construir el prompt para Qwen
@@ -381,14 +383,16 @@ function DetallePrenda() {
         **AUDIENCIA:** Mujeres de 25 a 55 años.
 
         **RESTRICCIONES:**
-        1. **Longitud:** La descripción completa debe ser de **4 a 6 líneas/párrafos muy cortos máximo**. Sé muy conciso.
-        2. **Contenido:** Debes resaltar la **comodidad, versatilidad** (ej. "ideal para el trabajo y un café con amigas"), **estilo, calidad y accesibilidad** de la prenda.
+        1. **Longitud:** La descripción completa debe ser de **3 a 4 líneas/párrafos muy cortos máximo**. Sé muy conciso.
+        2. **Contenido:** Debes resaltar la **comodidad, versatilidad, estilo, calidad y accesibilidad** de la prenda.
         3. **Formato:** Utiliza emojis y un lenguaje cálido. **NO uses negritas ni viñetas.**
 
         **DATOS DE LA PRENDA:**
         - Nombre: ${nombrePrenda}
+        - Categoria: ${categoria}
         - Detalles Adicionales: ${detallesPrenda}
-        - Tallas Disponibles: ${tallas}
+        - Tallas Disponibles a mencionar: ${tallas}
+        - Oferta (si existe se menciona): ${oferta}
         - PRECIO A MENCIONAR: $${precio} pesos.
 
         **CIERRE OBLIGATORIO (Call to Action):**
