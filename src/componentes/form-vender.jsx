@@ -13,7 +13,7 @@ import "slick-carousel/slick/slick-theme.css";
 import Select from "react-select";
 
 // ✅ FUNCIÓN PARA ACTUALIZAR PERFIL DE RECOMENDACIÓN
-// ✅ FUNCIÓN PARA ACTUALIZAR PERFIL DE RECOMENDACIÓN — ¡CORREGIDA!
+// (Función omitida para brevedad, no ha cambiado)
 const actualizarPerfilTrasNuevoPedido = async (clienteId) => {
   try {
     console.log(`🔄 Iniciando actualización de perfil para cliente: ${clienteId}`);
@@ -143,9 +143,14 @@ function FormVender() {
   const { id } = useParams();
 
   const ClientesOptions = clientes.map((cliente) => ({
-    value: cliente.id,      // ← ID del cliente (clave!)
-    label: cliente.cliente, // ← Nombre para mostrar
+    value: cliente.id,
+    label: cliente.cliente,
   }));
+
+  const tipoCompraOptions = [ // 👈 NUEVO: Opciones para el Select
+    { value: 'stock', label: 'Stock' },
+    { value: 'pedido', label: 'Pedido' },
+  ];
 
   const [Data, setData] = useState({
     prenda: "",
@@ -157,14 +162,15 @@ function FormVender() {
     categoria: "",
     proveedor: "",
     fotos: [],
-    cliente: null, // ← ahora es objeto {value, label}
+    cliente: null,
     fecha: "",
     color: "",
-    pago: "",
+    pago: 0,
     lugar: "",
     entrega: "",
     comprado: false,
-    entregado: false
+    entregado: false,
+    tipoCompra: tipoCompraOptions[0], // 👈 CAMBIO: Valor inicial como objeto 'stock'
   });
 
   const lugares = [
@@ -235,6 +241,9 @@ function FormVender() {
             categoria: data.categoria,
             proveedor: data.proveedor,
             fotos: data.fotos || [],
+            pago: 0,
+            entregado: false,
+            tipoCompra: tipoCompraOptions[0], // 👈 CAMBIO: Aseguramos valor inicial
           });
           setPrecioBase(parseFloat(data.precio));
           if (data.fotos && data.fotos.length > 0) {
@@ -301,7 +310,8 @@ function FormVender() {
           lugar: "",
           entrega: "",
           comprado: false,
-          entregado: false
+          entregado: false,
+          tipoCompra: tipoCompraOptions[0], // 👈 CAMBIO: Valor inicial al resetear
         });
         setPrecioBase(parseFloat(data.precio));
       }
@@ -325,6 +335,11 @@ function FormVender() {
   const handleEntregaChange = (selectedOption) => {
     setData({ ...Data, entrega: selectedOption });
   };
+  
+  // 👈 NUEVA FUNCIÓN: Manejar el cambio del Select de Tipo de Compra
+  const handleTipoCompraChange = (selectedOption) => {
+    setData({ ...Data, tipoCompra: selectedOption });
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -333,10 +348,6 @@ function FormVender() {
 
   const handleComprado = () => {
     setData({ ...Data, comprado: !Data.comprado });
-  };
-
-  const handleEntregado = () => {
-    setData({ ...Data, entregado: !Data.entregado });
   };
 
   function redondearAlMultiploDe5(numero) {
@@ -351,24 +362,48 @@ function FormVender() {
       alert("Por favor, selecciona un cliente.");
       return;
     }
+    
+    // Asegurar que tipoCompra tiene un valor
+    if (!Data.tipoCompra || !Data.tipoCompra.value) {
+        alert("Por favor, selecciona el tipo de compra (Stock o Pedido).");
+        return;
+    }
 
-    const clienteId = Data.cliente.value; // ← EXTRAEMOS EL ID
+    const clienteId = Data.cliente.value;
 
     const dataToSubmit = {
       ...Data,
-      cliente: Data.cliente.label,      // nombre para mostrar
-      clienteId: clienteId,             // ← ¡CAMPO CLAVE AÑADIDO!
+      cliente: Data.cliente.label,
+      clienteId: clienteId,
       lugar: Data.lugar?.label || "",
       entrega: Data.entrega?.label || "",
       talla: Data.talla?.label || "",
       fotos: imagenSeleccionada,
-      pago: Data.pago?.label || "",
+      pago: 0,
       comprado: !!Data.comprado,
-      entregado: !!Data.entregado
+      entregado: false,
+      tipoCompra: Data.tipoCompra.value, // 👈 CAMBIO: Envía solo el 'value' del objeto Select
     };
+    
+    // Eliminamos los campos que no deben ser enviados (si son objetos Select)
+    delete dataToSubmit.cliente;
+    delete dataToSubmit.lugar;
+    delete dataToSubmit.entrega;
+    delete dataToSubmit.talla;
+    delete dataToSubmit.tipoCompra;
+    
+    // Y los agregamos como strings:
+    const finalDataToSubmit = {
+        ...dataToSubmit,
+        cliente: Data.cliente.label,
+        lugar: Data.lugar?.label || "",
+        entrega: Data.entrega?.label || "",
+        talla: Data.talla?.label || "",
+        tipoCompra: Data.tipoCompra.value, // 👈 CAMBIO: Ahora sí lo agregamos como string
+    }
 
     try {
-      const docRef = await addDoc(collection(db, "pedidos"), dataToSubmit);
+      const docRef = await addDoc(collection(db, "pedidos"), finalDataToSubmit);
       alert("Pedido agregado con éxito.");
 
       // ✅ ACTUALIZAR PERFIL DEL CLIENTE
@@ -461,6 +496,18 @@ function FormVender() {
               placeholder="Seleccionar cliente"
             />
           </div>
+          {/* 👈 NUEVO SELECT: Tipo de Compra */}
+          <div className="flex flex-col pt-2">
+            <label className="px-2 text-pink-800 font-bold">Tipo de Compra:</label>
+            <Select
+              options={tipoCompraOptions}
+              value={Data.tipoCompra}
+              onChange={handleTipoCompraChange}
+              isClearable={false}
+              placeholder="Stock o Pedido"
+            />
+          </div>
+          {/* ---------------------------------- */}
           <div className="flex flex-col pt-2">
             <label className="px-2 text-pink-800 font-bold">Talla:</label>
             <Select
@@ -500,7 +547,7 @@ function FormVender() {
               ${Data.precio}
             </p>
           </div>
-
+          
           <div className="flex flex-row justify-between">
             <div className="flex flex-col pt-2 w-1/2 pr-2">
               <label className="px-2 text-pink-800 font-bold">Lugar de entrega:</label>
@@ -527,14 +574,10 @@ function FormVender() {
               />
             </div>
           </div>
-          <div className="flex flex-row mt-4 mx-10 justify-between">
+          <div className="flex flex-row mt-4 mx-10 justify-center">
             <div className="flex flex-col">
               <input type="checkbox" checked={Data.comprado} onChange={handleComprado} />
               <label className="text-pink-800">¿Comprado?</label>
-            </div>
-            <div className="flex flex-col">
-              <input type="checkbox" checked={Data.entregado} onChange={handleEntregado} />
-              <label className="text-pink-800">¿Entregado?</label>
             </div>
           </div>
           <div className="flex justify-center pt-2">

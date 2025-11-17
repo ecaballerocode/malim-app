@@ -33,18 +33,16 @@ function FormVenderInventario() {
     costo: "",
     precio: "",
     tallas:"",
-    talla: "",
+    talla: null, // Mejor inicializar como null para Select
     categoria: "",
     proveedor: "",
     fotos: [],
-    cliente: "",
+    cliente: null, // Mejor inicializar como null para Select
     fecha:"",
     color:"",
-    pago:"",
-    lugar:"",
-    entrega:"",
+    lugar: null, // Mejor inicializar como null para Select
+    entrega: null, // Mejor inicializar como null para Select
     comprado:false,
-    entregado:false
   });
 
   const lugares = [
@@ -104,6 +102,7 @@ function FormVenderInventario() {
             costo: data.costo,
             precio: data.precio,
             tallas: data.tallas,
+            // Re-mapear valores para Select si existen
             talla: data.talla ? { value: data.talla, label: data.talla } : null,
             categoria: data.categoria,
             proveedor: data.proveedor,
@@ -111,11 +110,11 @@ function FormVenderInventario() {
             cliente: data.cliente ? {value: data.cliente, label: data.cliente}: null,
             fecha: data.fecha,
             color: data.color,
-            pago: data.pago,
+            // pago: data.pago, // ❌ Eliminado
             lugar: data.lugar ? {value: data.lugar, label: data.lugar}: null,
             entrega:data.entrega ? {value: data.entrega, label: data.entrega}: null,
             comprado: data.comprado,
-            entregado:data.entregado
+            // entregado:data.entregado // ❌ Eliminado
           });
         }
       } catch (error) {
@@ -155,18 +154,16 @@ function FormVenderInventario() {
               costo: data.costo,
               precio: data.precio,
               tallas: data.talla,
-              talla:"",
+              talla: null,
               categoria: data.categoria,
               proveedor: data.proveedor,
               fotos: data.fotos || [],
-              cliente: "",
+              cliente: null,
               fecha:"",
               color:"",
-              pago:"",
-              lugar:"",
-              entrega:"",
+              lugar: null,
+              entrega: null,
               comprado:false,
-              entregado:false
             });
           }
         } catch (error) {
@@ -200,9 +197,7 @@ function FormVenderInventario() {
         setData({...Data, comprado:!Data.comprado})
       };
 
-      const handleEntregado = () => {
-        setData({...Data, entregado:!Data.entregado})
-      };
+      // ❌ Eliminado handleEntregado
 
       const handleSubmit = async (e) => {
         e.preventDefault();
@@ -213,13 +208,36 @@ function FormVenderInventario() {
         lugar: Data.lugar?.label || "",
         entrega: Data.entrega?.label || "",
         talla: Data.talla?.label || "",
-        pago: Number(Data.pago),
         comprado: !!Data.comprado, // Asegurar booleano
-        entregado: !!Data.entregado
+        entregado: false, // 👈 Fijado a false (no hay checkbox)
+        tipoCompra: "stock" // 👈 NUEVO: Valor por defecto fijo
       };
+      
+      // ❌ Eliminado pago y entregado de la lista
+      delete dataToSubmit.pago; 
+      delete dataToSubmit.entregado;
+
+
+      // Limpiar los objetos Select de Data antes de enviar para evitar enviar objetos complejos
+      const finalDataToSubmit = {
+          ...dataToSubmit,
+          cliente: dataToSubmit.cliente,
+          lugar: dataToSubmit.lugar,
+          entrega: dataToSubmit.entrega,
+          talla: dataToSubmit.talla,
+      }
+      delete finalDataToSubmit.cliente;
+      delete finalDataToSubmit.lugar;
+      delete finalDataToSubmit.entrega;
+      delete finalDataToSubmit.talla;
+
+      finalDataToSubmit.cliente = Data.cliente?.label || "";
+      finalDataToSubmit.lugar = Data.lugar?.label || "";
+      finalDataToSubmit.entrega = Data.entrega?.label || "";
+      finalDataToSubmit.talla = Data.talla?.label || "";
   
       try {
-        await updateDoc(doc(db, "pedidos", id), dataToSubmit);
+        await updateDoc(doc(db, "pedidos", id), finalDataToSubmit);
         alert("Prenda vendida con éxito.");
         
         navigate("/Inventario")
@@ -316,18 +334,7 @@ function FormVenderInventario() {
                           className="px-2 rounded-md h-8 shadow-sm"
                           />
                     </div>
-                    <div className="flex flex-col pt-2">
-                      <label className="px-2 text-pink-800 font-bold">Pago:</label>
-                      <input
-                          name="pago"
-                          type="number"
-                          value={Data.pago}
-                          onChange={handleChange}
-                          placeholder="¿Cuanto ha pagado?"
-                          required
-                          className="px-2 rounded-md h-8 shadow-sm"
-                          />
-                    </div>
+                    {/* ❌ Eliminado el input de Pago */}
                     <div className="flex flex-row justify-between">
                       <div className="flex flex-col pt-2 w-1/2 pr-2">
                         <label className="px-2 text-pink-800 font-bold">Lugar de entrega:</label>
@@ -354,15 +361,12 @@ function FormVenderInventario() {
                             />
                       </div>
                     </div>
-                    <div className="flex flex-row mt-4 mx-10 justify-between">
+                    <div className="flex flex-row mt-4 mx-10 justify-center">
                       <div className="flex flex-col">
                         <input type="checkbox" checked={Data.comprado} onChange={handleComprado}/>
                         <label className="text-pink-800">¿Comprado?</label>
                       </div>
-                      <div className="flex flex-col">
-                        <input type="checkbox" checked={Data.entregado} onChange={handleEntregado}/>
-                        <label className="text-pink-800">¿Entregado?</label>
-                      </div>
+                      {/* ❌ Eliminado el checkbox de Entregado */}
                     </div>
                     <div className="flex w-full flex-col pt-2">
                       <div className="w-full flex justify-center">

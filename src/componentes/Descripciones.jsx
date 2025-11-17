@@ -14,6 +14,7 @@ function Disponible() {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [tipoFecha, setTipoFecha] = useState("fecha"); // fecha o fechaEntrega
+  const [filtroCliente, setFiltroCliente] = useState("todos"); // 👈 NUEVO: Estado para el filtro de cliente
 
   // Exportar a CSV
   const exportarCSV = () => {
@@ -36,6 +37,7 @@ function Disponible() {
           precio,
           color,
           lugar,
+          tipoCompra,
         }) => ({
           Fecha: fecha || "",
           "Fecha de Entrega": fechaEntrega || "",
@@ -47,6 +49,7 @@ function Disponible() {
           Precio: precio || "",
           Color: color || "",
           Lugar: lugar || "",
+          "Tipo de Compra": tipoCompra || "",
         })
       )
     );
@@ -89,17 +92,29 @@ function Disponible() {
   // Filtrar prendas
   const filtrarPrendas = () => {
     return pedidos.filter((doc) => {
+      // 1. Filtro por fecha (existente)
       const campoFecha = tipoFecha === "fecha" ? doc.fecha : doc.fechaEntrega;
+      const pasaFiltroFecha = (() => {
+        if (!campoFecha) return false;
 
-      if (!campoFecha) return false; // si no tiene fecha en ese campo, no entra al filtro
+        const pedidoFecha = new Date(campoFecha);
+        const inicio = fechaInicio ? new Date(fechaInicio) : null;
+        const fin = fechaFin ? new Date(fechaFin) : null;
 
-      const pedidoFecha = new Date(campoFecha);
-      const inicio = fechaInicio ? new Date(fechaInicio) : null;
-      const fin = fechaFin ? new Date(fechaFin) : null;
+        return (!inicio || pedidoFecha >= inicio) && (!fin || pedidoFecha <= fin);
+      })();
 
-      return (!inicio || pedidoFecha >= inicio) && (!fin || pedidoFecha <= fin);
+      // 2. Filtro por cliente (NUEVO)
+      const clienteNormalizado = doc.cliente ? doc.cliente.toUpperCase() : ''; 
+      
+      const pasaFiltroCliente = 
+        filtroCliente === 'todos' ||
+        (filtroCliente === 'inventario' && clienteNormalizado === 'INVENTARIO') ||
+        (filtroCliente === 'no_inventario' && clienteNormalizado !== 'INVENTARIO');
+      
+      // Combina ambos filtros
+      return pasaFiltroFecha && pasaFiltroCliente;
     });
-
   };
 
   const prendasFiltradas = filtrarPrendas();
@@ -123,6 +138,7 @@ function Disponible() {
       <main className="pb-16 pt-10">
         {/* Filtros */}
         <div className="flex lg:flex-row flex-col justify-between items-center gap-4 px-5">
+          {/* Filtro por Fecha */}
           <div className="flex flex-row items-center gap-2">
             <label className="text-sm text-pink-800">Filtrar por:</label>
             <select
@@ -134,6 +150,22 @@ function Disponible() {
               <option value="fechaEntrega">Fecha de entrega</option>
             </select>
           </div>
+          
+          {/* Filtro por Cliente (NUEVO) */}
+          <div className="flex flex-row items-center gap-2">
+            <label className="text-sm text-pink-800">Cliente:</label>
+            <select
+              value={filtroCliente}
+              onChange={(e) => setFiltroCliente(e.target.value)}
+              className="h-10 rounded-lg p-2 border-gray-200 border-2 bg-white"
+            >
+              <option value="todos">Todos</option>
+              <option value="inventario">INVENTARIO</option>
+              <option value="no_inventario">No INVENTARIO</option>
+            </select>
+          </div>
+
+          {/* Rangos de Fecha */}
           <div className="flex flex-row items-center gap-2">
             <label className="text-sm text-pink-800">Desde:</label>
             <input
@@ -178,10 +210,11 @@ function Disponible() {
                 <th className="px-3 py-2">Precio</th>
                 <th className="px-3 py-2">Color</th>
                 <th className="px-3 py-2">Lugar</th>
+                <th className="px-3 py-2">Tipo de Compra</th>
               </tr>
             </thead>
             <tbody>
-              {filtrarPrendas().map((doc) => (
+              {prendasFiltradas.map((doc) => (
                 <tr
                   key={doc.id}
                   className="border-b hover:bg-pink-50 transition text-center"
@@ -196,6 +229,7 @@ function Disponible() {
                   <td className="px-3 py-2">{doc.precio || ""}</td>
                   <td className="px-3 py-2">{doc.color || ""}</td>
                   <td className="px-3 py-2">{doc.lugar || ""}</td>
+                  <td className="px-3 py-2">{doc.tipoCompra || ""}</td>
                 </tr>
               ))}
             </tbody>
